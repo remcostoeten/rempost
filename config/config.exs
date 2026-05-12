@@ -13,6 +13,7 @@ config :rempost, Oban,
   queues: [emails: 20, parsing: 20, default: 10]
 
 config :rempost, RempostWeb.Endpoint,
+  adapter: Bandit.PhoenixAdapter,
   url: [host: "localhost"],
   render_errors: [
     formats: [html: RempostWeb.ErrorHTML, json: RempostWeb.ErrorJSON],

@@ -1,6 +1,7 @@
 defmodule RempostWeb.Router do
   use RempostWeb, :router
   import Oban.Web.Router
+  import Plug.BasicAuth
 
   pipeline :browser do
     plug :accepts, ["html"]
