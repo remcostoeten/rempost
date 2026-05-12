@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "skills": {
+    "elixir": {
+      "source": "mindrally/skills",
+      "sourceType": "github",
+      "skillPath": "elixir/SKILL.md",
+      "computedHash": "b8f9a58fc110ab05a805a1c4a82d3aeddaa8a739acee267bf0b7ec6f75002e8b"
+    },
+    "elixir-ecto-patterns": {
+      "source": "thebushidocollective/han",
+      "sourceType": "github",
+      "skillPath": "plugins/languages/elixir/skills/elixir-ecto-patterns/SKILL.md",
+      "computedHash": "328d78bb90461f3ace2ef5b4991c003cb2658400119affe594a62961760c9882"
+    },
+    "phoenix": {
+      "source": "mindrally/skills",
+      "sourceType": "github",
+      "skillPath": "phoenix/SKILL.md",
+      "computedHash": "94547d2956e49e5bd3d2ab51630b9f2f5fc37733f763e47ba8a952a1c38fd0b4"
+    }
+  }
+}
