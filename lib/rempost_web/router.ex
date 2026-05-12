@@ -15,6 +15,10 @@ defmodule RempostWeb.Router do
     plug :accepts, ["json"]
   end
 
+  pipeline :oban_admin do
+    plug :basic_auth, username: System.get_env("OBAN_DASHBOARD_USER") || "admin", password: System.get_env("OBAN_DASHBOARD_PASS") || "admin"
+  end
+
   scope "/", RempostWeb do
     pipe_through :browser
     live "/", DashboardLive.Index, :index
@@ -29,7 +33,7 @@ defmodule RempostWeb.Router do
   end
 
   scope "/oban" do
-    pipe_through :browser
+    pipe_through [:browser, :oban_admin]
     oban_dashboard "/"
   end
 end

@@ -1,5 +1,6 @@
 defmodule RempostWeb.InboundEmailController do
   use RempostWeb, :controller
+  require Logger
 
   def create(conn, params) do
     attrs = %{
@@ -14,8 +15,12 @@ defmodule RempostWeb.InboundEmailController do
     }
 
     case Rempost.Emails.ingest_email(attrs) do
-      {:ok, email} -> json(conn |> put_status(:accepted), %{id: email.id, status: "queued"})
-      {:error, reason} -> json(conn |> put_status(:unprocessable_entity), %{error: inspect(reason)})
+      {:ok, email} ->
+        json(conn |> put_status(:accepted), %{id: email.id, status: "queued"})
+
+      {:error, reason} ->
+        Logger.warning("Inbound email ingestion failed", reason: inspect(reason), workspace_id: attrs.workspace_id, message_id: attrs.message_id)
+        json(conn |> put_status(:unprocessable_entity), %{error: "unable_to_ingest_email"})
     end
   end
 end

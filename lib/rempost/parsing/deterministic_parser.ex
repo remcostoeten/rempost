@@ -31,6 +31,11 @@ defmodule Rempost.Parsing.DeterministicParser do
     end
   end
 
-  defp extract(regex, raw), do: Regex.run(regex, raw) |> List.first()
+  defp extract(regex, raw) do
+    case Regex.run(regex, raw) do
+      nil -> nil
+      [first | _] -> first
+    end
+  end
   defp extract_group(regex, raw, idx), do: regex |> Regex.run(raw) |> case do nil -> nil; groups -> Enum.at(groups, idx) end
 end
