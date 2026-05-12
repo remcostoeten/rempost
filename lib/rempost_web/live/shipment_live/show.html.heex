@@ -1,0 +1,4 @@
+<h1 class="text-2xl font-semibold">Shipment <%= @shipment.tracking_number %></h1>
+<ol class="mt-6 space-y-3">
+<%= for e <- @shipment.tracking_events do %><li class="rounded-lg border p-3"><p><%= e.status %></p><p class="text-xs text-zinc-500"><%= e.occurred_at %></p></li><% end %>
+</ol>

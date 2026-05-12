@@ -1,0 +1,4 @@
+<h1 class="text-2xl font-semibold mb-4">Shipments</h1>
+<table class="w-full text-sm"><thead><tr><th>Tracking</th><th>Carrier</th><th>Status</th></tr></thead><tbody>
+<%= for s <- @shipments do %><tr><td><.link navigate={~p"/shipments/#{s.id}"}><%= s.tracking_number %></.link></td><td><%= s.carrier %></td><td><%= s.status %></td></tr><% end %>
+</tbody></table>
