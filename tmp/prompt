@@ -1,0 +1,108 @@
+Yes exactly.
+
+You now have:
+
+* `AGENTS.md` → architecture brain
+* `DESIGN.md` → visual system
+* optionally `skills.sh`
+
+Now you give Codex ONE execution prompt.
+
+Use this:
+
+Read and fully internalize:
+
+* AGENTS.md
+* DESIGN.md
+* skills.sh
+
+Follow all architecture, domain, and UI rules exactly.
+
+Build the initial production-grade Phoenix LiveView MVP for Rempost.
+
+IMPORTANT:
+
+* Do not generate toy examples.
+* Do not generate placeholder architecture.
+* Build realistic production-quality code.
+* Use idiomatic Elixir and Phoenix patterns.
+* Keep LiveViews thin.
+* Use Phoenix contexts properly.
+* Use Oban for async processing.
+* Use PubSub for realtime updates.
+* Follow the operational SaaS philosophy from AGENTS.md.
+
+Start by generating the foundational architecture only.
+
+PHASE 1:
+
+1. Create the Phoenix application structure
+2. Configure PostgreSQL
+3. Configure Ecto
+4. Configure Oban
+5. Configure PubSub
+6. Create base contexts:
+
+   * Accounts
+   * Workspaces
+   * Emails
+   * Orders
+   * Shipments
+7. Generate Ecto schemas + migrations
+8. Create inbound email ingestion endpoint:
+   POST /api/inbound/email
+9. Persist raw emails immediately
+10. Enqueue EmailParserJob
+11. Create Oban worker structure
+12. Create shipment + tracking domain models
+13. Create realtime PubSub broadcasting architecture
+14. Create initial LiveView dashboard shell
+15. Create shipments table LiveView
+16. Create shipment detail timeline LiveView
+17. Create raw email debug LiveView
+
+Requirements:
+
+* multi-tenant ready
+* workspace_id isolation
+* indexes on searchable fields
+* explicit changesets
+* pattern matching
+* pipelines
+* no business logic inside LiveViews
+* no synchronous parsing
+* no unnecessary abstractions
+
+UI:
+
+* follow DESIGN.md exactly
+* clean operational dashboard
+* calm SaaS aesthetic
+* dense but readable tables
+* search-first workflow
+* timeline-based shipment detail page
+* monochrome design language
+
+Email parsing:
+
+* deterministic parsing first
+* regex extraction
+* carrier normalization
+* AI extraction only as future fallback abstraction
+
+Architecture output expected:
+
+* folder structure
+* contexts
+* schemas
+* migrations
+* workers
+* LiveViews
+* routers
+* PubSub flow
+* Oban queues
+* parsing pipeline
+* realtime update architecture
+
+Build this as if it were a real startup product intended for production deployment.
+
