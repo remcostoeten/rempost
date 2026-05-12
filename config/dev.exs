@@ -17,7 +17,12 @@ config :rempost, RempostWeb.Endpoint,
   watchers: []
 
 config :rempost, RempostWeb.Endpoint,
-  live_reload: [patterns: [~r"priv/static/.*(js|css|png|jpeg|jpg|gif|svg)$", ~r"lib/rempost_web/(controllers|live|components)/.*(ex|heex)$"]]
+  live_reload: [
+    patterns: [
+      ~r"priv/static/.*(js|css|png|jpeg|jpg|gif|svg)$",
+      ~r"lib/rempost_web/(controllers|live|components)/.*(ex|heex)$"
+    ]
+  ]
 
 config :phoenix, :stacktrace_depth, 20
 config :phoenix, :plug_init_mode, :runtime

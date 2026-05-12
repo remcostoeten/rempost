@@ -4,8 +4,7 @@ config :rempost,
   ecto_repos: [Rempost.Repo],
   generators: [timestamp_type: :utc_datetime]
 
-config :rempost, Rempost.Repo,
-  migration_timestamps: [type: :utc_datetime]
+config :rempost, Rempost.Repo, migration_timestamps: [type: :utc_datetime]
 
 config :rempost, Oban,
   repo: Rempost.Repo,
@@ -23,11 +22,17 @@ config :rempost, RempostWeb.Endpoint,
 
 config :esbuild,
   version: "0.20.2",
-  rempost: [args: ~w(js/app.js --bundle --target=es2022 --outdir=../priv/static/assets), cd: Path.expand("../assets", __DIR__)]
+  rempost: [
+    args: ~w(js/app.js --bundle --target=es2022 --outdir=../priv/static/assets),
+    cd: Path.expand("../assets", __DIR__)
+  ]
 
 config :tailwind,
   version: "3.4.3",
-  rempost: [args: ~w(--input=assets/css/app.css --output=priv/static/assets/app.css), cd: Path.expand("..", __DIR__)]
+  rempost: [
+    args: ~w(--input=assets/css/app.css --output=priv/static/assets/app.css),
+    cd: Path.expand("..", __DIR__)
+  ]
 
 config :logger, :default_formatter,
   format: "$time $metadata[$level] $message\n",

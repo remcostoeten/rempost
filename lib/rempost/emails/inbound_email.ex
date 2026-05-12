@@ -19,7 +19,18 @@ defmodule Rempost.Emails.InboundEmail do
 
   def changeset(email, attrs) do
     email
-    |> cast(attrs, [:workspace_id, :message_id, :from_email, :subject, :received_at, :raw_headers, :raw_text, :raw_html, :status, :parse_error])
+    |> cast(attrs, [
+      :workspace_id,
+      :message_id,
+      :from_email,
+      :subject,
+      :received_at,
+      :raw_headers,
+      :raw_text,
+      :raw_html,
+      :status,
+      :parse_error
+    ])
     |> validate_required([:workspace_id, :message_id, :from_email, :received_at, :raw_text])
     |> unique_constraint([:workspace_id, :message_id])
   end

@@ -9,5 +9,8 @@ defmodule RempostWeb.DashboardLive.Index do
     {:ok, assign(socket, workspace_id: workspace_id, shipments: shipments, emails: emails)}
   end
 
-  def handle_info({:shipment_updated, _id}, socket), do: {:noreply, assign(socket, shipments: Rempost.Shipments.list_shipments(socket.assigns.workspace_id))}
+  def handle_info({:shipment_updated, _id}, socket),
+    do:
+      {:noreply,
+       assign(socket, shipments: Rempost.Shipments.list_shipments(socket.assigns.workspace_id))}
 end

@@ -1,6 +1,6 @@
 defmodule RempostWeb.Router do
   use RempostWeb, :router
-  import Oban.Web.Router
+  # import Oban.Web.Router
 
   pipeline :browser do
     plug :accepts, ["html"]
@@ -28,8 +28,8 @@ defmodule RempostWeb.Router do
     post "/inbound/email", InboundEmailController, :create
   end
 
-  scope "/oban" do
-    pipe_through :browser
-    oban_dashboard "/"
-  end
+  # scope "/oban" do
+  #   pipe_through :browser
+  #   oban_dashboard("/")
+  # end
 end

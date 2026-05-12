@@ -14,8 +14,11 @@ defmodule RempostWeb.InboundEmailController do
     }
 
     case Rempost.Emails.ingest_email(attrs) do
-      {:ok, email} -> json(conn |> put_status(:accepted), %{id: email.id, status: "queued"})
-      {:error, reason} -> json(conn |> put_status(:unprocessable_entity), %{error: inspect(reason)})
+      {:ok, email} ->
+        json(conn |> put_status(:accepted), %{id: email.id, status: "queued"})
+
+      {:error, reason} ->
+        json(conn |> put_status(:unprocessable_entity), %{error: inspect(reason)})
     end
   end
 end
