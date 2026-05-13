@@ -12,8 +12,20 @@ defmodule Rempost.Emails do
   def ingest_email(attrs) do
     Repo.transaction(fn ->
       with {:ok, email} <- upsert_or_get_email(attrs),
-           {:ok, _job} <- EmailParserWorker.new(%{"inbound_email_id" => email.id, "workspace_id" => email.workspace_id}) |> Oban.insert() do
+           {:ok, _job} <- enqueue_parser_job(email) do
         broadcast(email.workspace_id, :email_ingested, email.id)
+        email
+      else
+        {:error, reason} -> Repo.rollback(reason)
+      end
+    end)
+  end
+
+  def retry_parsing(%InboundEmail{} = email) do
+    Repo.transaction(fn ->
+      with {:ok, email} <- reset_for_retry(email),
+           {:ok, _job} <- enqueue_parser_job(email) do
+        broadcast(email.workspace_id, :email_retry_queued, email.id)
         email
       else
         {:error, reason} -> Repo.rollback(reason)
@@ -41,6 +53,17 @@ defmodule Rempost.Emails do
       failed_parsing_count: Repo.aggregate(where(base, [e], e.status == :failed), :count, :id),
       processing_count: Repo.aggregate(where(base, [e], e.status == :processing), :count, :id)
     }
+  end
+
+  defp enqueue_parser_job(email) do
+    EmailParserWorker.new(%{"inbound_email_id" => email.id, "workspace_id" => email.workspace_id})
+    |> Oban.insert()
+  end
+
+  defp reset_for_retry(email) do
+    email
+    |> InboundEmail.changeset(%{status: :pending, parse_error: nil})
+    |> Repo.update()
   end
 
   defp upsert_or_get_email(attrs) do

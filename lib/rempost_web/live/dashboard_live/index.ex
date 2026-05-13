@@ -13,7 +13,7 @@ defmodule RempostWeb.DashboardLive.Index do
   end
 
   def handle_info({:shipment_updated, _id}, socket), do: {:noreply, refresh(socket)}
-  def handle_info({event, _id}, socket) when event in [:email_ingested, :email_processing, :email_parsed, :email_failed], do: {:noreply, refresh(socket)}
+  def handle_info({event, _id}, socket) when event in [:email_ingested, :email_processing, :email_parsed, :email_failed, :email_retry_queued], do: {:noreply, refresh(socket)}
 
   defp refresh(socket), do: load_dashboard(socket, socket.assigns.workspace_id)
 
