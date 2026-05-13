@@ -1,7 +1,35 @@
 <section class="space-y-6">
   <h1 class="text-3xl font-semibold tracking-tight">Operational Dashboard</h1>
-  <div class="grid grid-cols-2 gap-4">
-    <div class="rounded-xl bg-zinc-100 p-4"><p class="text-sm text-zinc-500">Active Shipments</p><p class="text-2xl"><%= length(@shipments) %></p></div>
-    <div class="rounded-xl bg-zinc-100 p-4"><p class="text-sm text-zinc-500">Recent Emails</p><p class="text-2xl"><%= length(@emails) %></p></div>
+
+  <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+    <div class="rounded-xl bg-zinc-100 p-4">
+      <p class="text-sm text-zinc-500">Active Shipments</p>
+      <p class="text-2xl"><%= @shipment_stats.active_count %></p>
+    </div>
+
+    <div class="rounded-xl bg-zinc-100 p-4">
+      <p class="text-sm text-zinc-500">Delivered</p>
+      <p class="text-2xl"><%= @shipment_stats.delivered_count %></p>
+    </div>
+
+    <div class="rounded-xl bg-zinc-100 p-4">
+      <p class="text-sm text-zinc-500">Delayed Deliveries</p>
+      <p class="text-2xl"><%= @shipment_stats.delayed_count %></p>
+    </div>
+
+    <div class="rounded-xl bg-zinc-100 p-4">
+      <p class="text-sm text-zinc-500">Recent Emails</p>
+      <p class="text-2xl"><%= @email_stats.recent_count %></p>
+    </div>
+
+    <div class="rounded-xl bg-zinc-100 p-4">
+      <p class="text-sm text-zinc-500">Failed Parsing</p>
+      <p class="text-2xl text-red-600"><%= @email_stats.failed_parsing_count %></p>
+    </div>
+
+    <div class="rounded-xl bg-zinc-100 p-4">
+      <p class="text-sm text-zinc-500">Emails Processing</p>
+      <p class="text-2xl"><%= @email_stats.processing_count %></p>
+    </div>
   </div>
 </section>
