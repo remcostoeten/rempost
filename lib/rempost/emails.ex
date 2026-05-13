@@ -3,10 +3,17 @@ defmodule Rempost.Emails do
   alias Rempost.{Repo, Emails.InboundEmail}
   alias Rempost.Workers.EmailParserWorker
 
+  def topic(workspace_id), do: "workspace:#{workspace_id}:emails"
+
+  def subscribe(workspace_id), do: Phoenix.PubSub.subscribe(Rempost.PubSub, topic(workspace_id))
+
+  def broadcast(workspace_id, event, payload), do: Phoenix.PubSub.broadcast(Rempost.PubSub, topic(workspace_id), {event, payload})
+
   def ingest_email(attrs) do
     Repo.transaction(fn ->
       with {:ok, email} <- upsert_or_get_email(attrs),
            {:ok, _job} <- EmailParserWorker.new(%{"inbound_email_id" => email.id, "workspace_id" => email.workspace_id}) |> Oban.insert() do
+        broadcast(email.workspace_id, :email_ingested, email.id)
         email
       else
         {:error, reason} -> Repo.rollback(reason)
@@ -22,6 +29,18 @@ defmodule Rempost.Emails do
     |> order_by([e], desc: e.inserted_at)
     |> limit(50)
     |> Repo.all()
+  end
+
+  def stats(workspace_id) do
+    base =
+      InboundEmail
+      |> where([e], e.workspace_id == ^workspace_id)
+
+    %{
+      recent_count: Repo.aggregate(base, :count, :id),
+      failed_parsing_count: Repo.aggregate(where(base, [e], e.status == :failed), :count, :id),
+      processing_count: Repo.aggregate(where(base, [e], e.status == :processing), :count, :id)
+    }
   end
 
   defp upsert_or_get_email(attrs) do
