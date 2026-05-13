@@ -6,7 +6,7 @@ defmodule Rempost.Parsing.Pipeline do
       order = upsert_order!(workspace_id, email, parsed)
       shipment = upsert_shipment!(workspace_id, order, parsed)
       create_tracking_event!(workspace_id, shipment, parsed)
-      email |> InboundEmail.changeset(%{status: :parsed}) |> Repo.update!()
+      email |> InboundEmail.changeset(%{status: :parsed, parse_error: nil}) |> Repo.update!()
       Shipments.broadcast(workspace_id, :shipment_updated, shipment.id)
       shipment
     end)

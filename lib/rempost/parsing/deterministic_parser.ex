@@ -7,17 +7,19 @@ defmodule Rempost.Parsing.DeterministicParser do
     %{
       carrier: carrier(raw),
       tracking_number: extract(@dhl_regex, raw),
-      order_number: extract_group(@order_regex, raw, 2),
+      order_number: extract_group(@order_regex, raw, 2) |> normalize_order_number(),
       status: status(raw)
     }
   end
 
   defp carrier(raw) do
-    case String.downcase(raw) do
-      text when String.contains?(text, "dhl") -> "dhl"
-      text when String.contains?(text, "ups") -> "ups"
-      text when String.contains?(text, "fedex") -> "fedex"
-      _ -> "unknown"
+    text = String.downcase(raw)
+
+    cond do
+      String.contains?(text, "dhl") -> "dhl"
+      String.contains?(text, "ups") -> "ups"
+      String.contains?(text, "fedex") -> "fedex"
+      true -> "unknown"
     end
   end
 
@@ -37,5 +39,18 @@ defmodule Rempost.Parsing.DeterministicParser do
       [first | _] -> first
     end
   end
-  defp extract_group(regex, raw, idx), do: regex |> Regex.run(raw) |> case do nil -> nil; groups -> Enum.at(groups, idx) end
+  defp extract_group(regex, raw, idx) do
+    case Regex.run(regex, raw) do
+      nil -> nil
+      groups -> Enum.at(groups, idx)
+    end
+  end
+
+  defp normalize_order_number(nil), do: nil
+
+  defp normalize_order_number(order_number) do
+    order_number
+    |> String.trim()
+    |> String.upcase()
+  end
 end

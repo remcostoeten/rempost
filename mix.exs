@@ -10,7 +10,7 @@ defmodule Rempost.MixProject do
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
       deps: deps(),
-      compilers: [:phoenix_live_view] ++ Mix.compilers(),
+      compilers: Mix.compilers(),
       dialyzer: [plt_add_apps: [:mix]]
     ]
   end
@@ -47,7 +47,8 @@ defmodule Rempost.MixProject do
       {:jason, "~> 1.4"},
       {:dns_cluster, "~> 0.1.1"},
       {:bandit, "~> 1.5"},
-      {:oban, "~> 2.18"}
+      {:oban, "~> 2.18"},
+      {:oban_web, "~> 2.12"}
     ]
   end
 

@@ -1,4 +1,12 @@
 defmodule RempostWeb do
+  def router do
+    quote do
+      use Phoenix.Router, helpers: false
+      import Plug.Conn
+      import Phoenix.LiveView.Router
+    end
+  end
+
   def controller do
     quote do
       use Phoenix.Controller, formats: [:html, :json]
