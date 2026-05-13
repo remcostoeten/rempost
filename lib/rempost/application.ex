@@ -5,6 +5,7 @@ defmodule Rempost.Application do
   def start(_type, _args) do
     children = [
       Rempost.Repo,
+      {Task, fn -> Rempost.Workspaces.ensure_default_workspace!() end},
       {Oban, Application.fetch_env!(:rempost, Oban)},
       {Phoenix.PubSub, name: Rempost.PubSub},
       RempostWeb.Telemetry,

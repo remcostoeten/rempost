@@ -4,12 +4,22 @@ config :rempost,
   ecto_repos: [Rempost.Repo],
   generators: [timestamp_type: :utc_datetime]
 
+config :rempost, :workspace_id, 1
+config :rempost, :inbound_token, "change-me"
+
 config :rempost, Rempost.Repo,
   migration_timestamps: [type: :utc_datetime]
 
 config :rempost, Oban,
   repo: Rempost.Repo,
-  plugins: [Oban.Plugins.Pruner],
+  plugins: [
+    Oban.Plugins.Pruner,
+    {Oban.Plugins.Cron,
+     crontab: [
+       {"0 3 * * *", Rempost.Workers.RawEmailRetentionWorker,
+        args: %{"retention_days" => 30, "workspace_id" => 1}}
+     ]}
+  ],
   queues: [emails: 20, parsing: 20, default: 10]
 
 config :rempost, RempostWeb.Endpoint,

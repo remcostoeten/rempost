@@ -23,6 +23,7 @@ defmodule RempostWeb.Router do
   scope "/", RempostWeb do
     pipe_through :browser
     live "/", DashboardLive.Index, :index
+    live "/dashboard", DashboardLive.Index, :index
     live "/shipments", ShipmentLive.Index, :index
     live "/shipments/:id", ShipmentLive.Show, :show
     live "/emails/:id", EmailDebugLive.Show, :show
@@ -31,6 +32,7 @@ defmodule RempostWeb.Router do
   scope "/api", RempostWeb do
     pipe_through :api
     post "/inbound/email", InboundEmailController, :create
+    get "/inbound/emails", InboundEmailController, :index
   end
 
   scope "/oban" do

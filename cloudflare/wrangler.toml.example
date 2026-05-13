@@ -1,0 +1,13 @@
+name = "rempost-email-worker"
+main = "email-worker.mjs"
+compatibility_date = "2026-05-13"
+
+[vars]
+REMPOST_INBOUND_URL = "https://your-rempost-domain.com/api/inbound/email"
+
+# Set via secret command in production:
+# wrangler secret put REMPOST_INBOUND_TOKEN
+
+[[send_email]]
+name = "inbound"
+destination_address = "xxl@remcostoeten.nl"
