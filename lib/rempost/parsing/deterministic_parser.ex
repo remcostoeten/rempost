@@ -7,7 +7,7 @@ defmodule Rempost.Parsing.DeterministicParser do
     %{
       carrier: carrier(raw),
       tracking_number: extract(@dhl_regex, raw),
-      order_number: extract_group(@order_regex, raw, 2),
+      order_number: extract_group(@order_regex, raw, 2) |> normalize_order_number(),
       status: status(raw)
     }
   end
@@ -44,5 +44,13 @@ defmodule Rempost.Parsing.DeterministicParser do
       nil -> nil
       groups -> Enum.at(groups, idx)
     end
+  end
+
+  defp normalize_order_number(nil), do: nil
+
+  defp normalize_order_number(order_number) do
+    order_number
+    |> String.trim()
+    |> String.upcase()
   end
 end

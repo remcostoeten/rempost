@@ -1,2 +1,43 @@
-<h1 class="text-2xl font-semibold">Raw Email Debug</h1>
-<pre class="mt-4 rounded-lg bg-zinc-100 p-4 overflow-auto"><%= @email.raw_text %></pre>
+<section class="space-y-4">
+  <div class="flex items-center justify-between">
+    <h1 class="text-2xl font-semibold">Raw Email Debug</h1>
+    <button
+      phx-click="retry_parse"
+      class="rounded-md bg-black px-3 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
+      type="button"
+    >
+      Retry parsing
+    </button>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+    <div class="rounded-lg bg-zinc-100 p-3">
+      <p class="text-xs uppercase tracking-wide text-zinc-500">Status</p>
+      <p class="text-sm font-semibold"><%= @email.status %></p>
+    </div>
+    <div class="rounded-lg bg-zinc-100 p-3">
+      <p class="text-xs uppercase tracking-wide text-zinc-500">Message ID</p>
+      <p class="text-sm break-all"><%= @email.message_id %></p>
+    </div>
+    <div class="rounded-lg bg-zinc-100 p-3">
+      <p class="text-xs uppercase tracking-wide text-zinc-500">From</p>
+      <p class="text-sm break-all"><%= @email.from_email %></p>
+    </div>
+  </div>
+
+  <%= if @retry_error do %>
+    <p class="rounded-lg bg-red-50 p-3 text-sm text-red-700">Retry failed: <%= @retry_error %></p>
+  <% end %>
+
+  <%= if @email.parse_error do %>
+    <div class="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
+      <p class="font-semibold">Last parse error</p>
+      <p><%= @email.parse_error %></p>
+    </div>
+  <% end %>
+
+  <div>
+    <p class="mb-2 text-sm font-semibold text-zinc-600">Raw text</p>
+    <pre class="rounded-lg bg-zinc-100 p-4 overflow-auto"><%= @email.raw_text %></pre>
+  </div>
+</section>
