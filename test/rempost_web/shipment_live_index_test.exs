@@ -22,13 +22,13 @@ defmodule RempostWeb.ShipmentLiveIndexTest do
 
     {:ok, view, html} = live(conn, ~p"/portal")
 
-    assert html =~ "Wat is de naam waarop je besteld hebt?"
+    assert html =~ "Naam op bestelling"
 
     view
     |> form("form[phx-submit='identify']", lookup: %{name: "Iduna"})
     |> render_submit()
 
-    assert render(view) =~ "Controleer met postcode of huisnummer"
+    assert render(view) =~ "Welke postcode"
 
     view
     |> form("form[phx-submit='verify_address']",
@@ -38,7 +38,7 @@ defmodule RempostWeb.ShipmentLiveIndexTest do
 
     html = render(view)
 
-    assert html =~ "Ok, ik heb dit voor je:"
+    assert html =~ "Pakketjes"
     assert html =~ "XXL Nutrition"
     assert html =~ "JVGL06178784002102090726"
   end

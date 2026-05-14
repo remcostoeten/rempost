@@ -53,6 +53,15 @@ defmodule RempostWeb.ShipmentLive.Index do
      |> assign(:lookup_error, nil)}
   end
 
+  def handle_event("switch_verification_mode", %{"mode" => mode}, socket) do
+    {:noreply,
+     socket
+     |> assign(:verification_mode, normalize_mode(mode))
+     |> assign(:verification_value, "")
+     |> assign(:lookup_status, :idle)
+     |> assign(:lookup_error, nil)}
+  end
+
   def handle_event(
         "verify_address",
         %{"verification" => %{"mode" => mode, "value" => value}},
@@ -157,6 +166,35 @@ defmodule RempostWeb.ShipmentLive.Index do
     Enum.find(shipments, &(&1.id == selected_id))
   end
 
+  def step_active?(:identify, _step), do: true
+  def step_active?(:verify, step), do: step in [:verify, :results]
+  def step_active?(:results, :results), do: true
+  def step_active?(_step_key, _step), do: false
+
+  def merchant_label(nil), do: "Onbekende winkel"
+
+  def merchant_label(merchant_name) do
+    merchant_name
+    |> to_string()
+    |> String.replace(~r/^no-?reply@/i, "")
+    |> String.replace(~r/^info@/i, "")
+    |> String.replace(~r/\.(com|nl)$/i, "")
+  end
+
+  def merchant_initials(nil), do: "?"
+
+  def merchant_initials(merchant_name) do
+    merchant_name
+    |> merchant_label()
+    |> String.replace(~r/[^a-zA-ZÀ-ÿ0-9]/u, " ")
+    |> String.split(~r/\s+/, trim: true)
+    |> case do
+      [] -> "?"
+      [word] -> word |> String.slice(0, 2) |> String.upcase()
+      [first, second | _] -> String.upcase(String.first(first) <> String.first(second))
+    end
+  end
+
   def status_label(:ordered), do: "Besteld"
   def status_label(:shipped), do: "Verzonden"
   def status_label(:in_transit), do: "Onderweg"
@@ -177,10 +215,27 @@ defmodule RempostWeb.ShipmentLive.Index do
   def status_feedback(:error), do: {"error", "Controleer de gegevens en probeer het opnieuw."}
   def status_feedback(_status), do: nil
 
+  def address_label("house_number"), do: "Huisnummer"
+  def address_label(_mode), do: "Postcode"
+
+  def address_placeholder("house_number"), do: "Bijvoorbeeld 212"
+  def address_placeholder(_mode), do: "Bijvoorbeeld 2035 PH"
+
+  def address_toggle("house_number"), do: {"postcode", "Gebruik postcode in plaats daarvan"}
+
+  def address_toggle(_mode),
+    do: {"house_number", "Ik weet mijn postcode niet, maar wel mijn huisnummer"}
+
   def format_datetime(nil), do: "Nog niet bekend"
 
   def format_datetime(datetime) do
     Calendar.strftime(datetime, "%d-%m-%Y %H:%M")
+  end
+
+  def short_date(nil), do: "--"
+
+  def short_date(datetime) do
+    Calendar.strftime(datetime, "%d-%m")
   end
 
   defp normalize_mode("house_number"), do: "house_number"
