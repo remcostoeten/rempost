@@ -1,4 +1,6 @@
 defmodule Rempost.Parsing.Pipeline do
+  import Ecto.Query
+
   alias Rempost.{
     Repo,
     Orders.Order,
@@ -20,16 +22,37 @@ defmodule Rempost.Parsing.Pipeline do
   end
 
   defp upsert_order!(email, parsed) do
+    now = DateTime.utc_now()
+
     attrs = %{
       inbound_email_id: email.id,
       order_number: parsed.order_number || "unknown-#{email.id}",
-      merchant_name: email.from_email
+      merchant_name: email.from_email,
+      customer_name: parsed.customer_name,
+      customer_postal_code: parsed.customer_postal_code,
+      customer_street: parsed.customer_street,
+      customer_house_number: parsed.customer_house_number
     }
 
     %Order{}
     |> Order.changeset(attrs)
     |> Repo.insert!(
-      on_conflict: [set: [merchant_name: attrs.merchant_name, updated_at: DateTime.utc_now()]],
+      on_conflict:
+        from(o in Order,
+          update: [
+            set: [
+              merchant_name: fragment("COALESCE(EXCLUDED.merchant_name, ?)", o.merchant_name),
+              customer_name: fragment("COALESCE(EXCLUDED.customer_name, ?)", o.customer_name),
+              customer_postal_code:
+                fragment("COALESCE(EXCLUDED.customer_postal_code, ?)", o.customer_postal_code),
+              customer_street:
+                fragment("COALESCE(EXCLUDED.customer_street, ?)", o.customer_street),
+              customer_house_number:
+                fragment("COALESCE(EXCLUDED.customer_house_number, ?)", o.customer_house_number),
+              updated_at: ^now
+            ]
+          ]
+        ),
       conflict_target: :order_number,
       returning: true
     )

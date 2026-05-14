@@ -54,6 +54,60 @@ defmodule Rempost.Parsing.DeterministicParserTest do
     assert parsed.status == :in_transit
   end
 
+  test "does not treat status words or html tags as order numbers" do
+    parsed =
+      email(%{
+        subject: "Je bestelling is klaar voor verzending",
+        raw_text: "<div>Je bestelling is later onderweg.</div>"
+      })
+      |> DeterministicParser.parse()
+
+    assert parsed.order_number == nil
+  end
+
+  test "extracts conservative customer lookup fields" do
+    parsed =
+      email(%{
+        subject: "XXL Nutrition order 7788",
+        raw_text: """
+        Naam: Jane van Dijk
+        Adres: Hoofdstraat 12 B
+        1234 AB Amsterdam
+        Track & Trace JVGL06178784002102090726
+        """
+      })
+      |> DeterministicParser.parse()
+
+    assert parsed.customer_name == "Jane van Dijk"
+    assert parsed.customer_postal_code == "1234AB"
+    assert parsed.customer_street == "Hoofdstraat"
+    assert parsed.customer_house_number == "12B"
+  end
+
+  test "extracts Sendcloud-style address and recipient blocks" do
+    parsed =
+      email(%{
+        subject: "DHL eCommerce Benelux is onderweg",
+        raw_text: """
+        Bezorgadres
+        Monteverdistraat 212
+        2035 PH Haarlem
+        Nederland
+
+        Iduna Bink,
+
+        Je order 5234424 is onderweg en wordt bezorgd door DHL eCommerce Benelux.
+        """
+      })
+      |> DeterministicParser.parse()
+
+    assert parsed.customer_name == "Iduna Bink"
+    assert parsed.customer_postal_code == "2035PH"
+    assert parsed.customer_street == "Monteverdistraat"
+    assert parsed.customer_house_number == "212"
+    assert parsed.order_number == "5234424"
+  end
+
   test "extracts dutch delivered tracking data" do
     parsed =
       email(%{

@@ -128,7 +128,6 @@ The raw email record is canonical.
 Examples:
 
 * Accounts
-* Workspaces
 * Emails
 * Orders
 * Shipments
@@ -213,17 +212,29 @@ Operational transparency is critical.
 
 ---
 
-## Multi-Tenancy Rules
+## Single-Tenant Rules
 
-Everything must be scoped correctly.
+Rempost is intentionally single-tenant.
 
-Use:
+Do NOT reintroduce workspace or tenant abstractions unless the product direction
+explicitly changes.
 
-* workspace_id
-* ownership boundaries
-* query isolation
+Do NOT add:
 
-Never allow cross-workspace leakage.
+* workspace_id columns
+* Workspaces contexts
+* tenant-scoped PubSub topics
+* workspace ownership checks
+* query filters that imply multiple tenants
+
+Use direct domain boundaries instead:
+
+* raw emails
+* orders
+* shipments
+* tracking events
+* parser jobs
+* admin/public access boundaries
 
 ---
 

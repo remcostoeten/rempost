@@ -18,9 +18,45 @@ defmodule Rempost.ShipmentsTest do
     assert [] = Shipments.search_shipments("missing")
   end
 
+  test "looks up public shipments by customer name and postal code" do
+    order =
+      insert_order!("XXL-200", "XXL Nutrition", %{
+        customer_name: "Jane van Dijk",
+        customer_postal_code: "1234AB",
+        customer_house_number: "12B"
+      })
+
+    shipment = insert_shipment!(order, "JVGL06178784002102090727", "dhl", :in_transit)
+
+    assert [match] = Shipments.lookup_public_shipments("jane", "postcode", "1234 ab")
+    assert match.id == shipment.id
+    assert match.order.id == order.id
+    assert [] = Shipments.lookup_public_shipments("jane", "postcode", "9999ZZ")
+  end
+
+  test "looks up public shipments by customer name and street house number input" do
+    order =
+      insert_order!("XXL-201", "XXL Nutrition", %{
+        customer_name: "Jane van Dijk",
+        customer_street: "Hoofdstraat",
+        customer_house_number: "12B"
+      })
+
+    shipment = insert_shipment!(order, "JVGL06178784002102090728", "dhl", :in_transit)
+
+    assert [match] = Shipments.lookup_public_shipments("jane", "house_number", "Hoofdstraat 12 b")
+    assert match.id == shipment.id
+  end
+
   defp insert_order!(order_number, merchant_name) do
+    insert_order!(order_number, merchant_name, %{})
+  end
+
+  defp insert_order!(order_number, merchant_name, attrs) do
     %Order{}
-    |> Order.changeset(%{order_number: order_number, merchant_name: merchant_name})
+    |> Order.changeset(
+      Map.merge(%{order_number: order_number, merchant_name: merchant_name}, attrs)
+    )
     |> Repo.insert!()
   end
 

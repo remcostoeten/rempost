@@ -5,6 +5,10 @@ defmodule Rempost.Orders.Order do
   schema "orders" do
     field :order_number, :string
     field :merchant_name, :string
+    field :customer_name, :string
+    field :customer_postal_code, :string
+    field :customer_street, :string
+    field :customer_house_number, :string
 
     field :status, Ecto.Enum,
       values: [:placed, :processing, :fulfilled, :cancelled],
@@ -23,6 +27,10 @@ defmodule Rempost.Orders.Order do
         :inbound_email_id,
         :order_number,
         :merchant_name,
+        :customer_name,
+        :customer_postal_code,
+        :customer_street,
+        :customer_house_number,
         :status,
         :ordered_at
       ])
