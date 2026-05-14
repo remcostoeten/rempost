@@ -43,6 +43,19 @@ defmodule RempostWeb.ShipmentLive.Index do
      |> assign(:step, :lookup)}
   end
 
+  def handle_params(%{"master" => "1"} = params, _uri, socket) do
+    if socket.assigns.master_access? do
+      {:noreply,
+       socket
+       |> assign(:selected_customer, params |> Map.get("customer", "") |> String.trim())
+       |> assign(:search_query, params |> Map.get("search", "") |> String.trim())
+       |> assign(:step, :results)
+       |> load_public_shipments()}
+    else
+      {:noreply, socket}
+    end
+  end
+
   def handle_params(%{"name" => name} = params, _uri, socket) when name != "" do
     {:noreply,
      socket
