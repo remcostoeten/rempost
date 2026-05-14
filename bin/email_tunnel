@@ -1,0 +1,321 @@
+#!/usr/bin/env bash
+# Start local Rempost, expose it through a quick Cloudflare tunnel, and print
+# the inbound email URL Cloudflare Workers should POST to.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+cd "$PROJECT_ROOT"
+
+TMP_DIR="$PROJECT_ROOT/tmp"
+PHX_PID_FILE="$TMP_DIR/email_tunnel_phx.pid"
+TUNNEL_PID_FILE="$TMP_DIR/email_tunnel_cloudflared.pid"
+PHX_LOG="$TMP_DIR/email_tunnel_phx.log"
+TUNNEL_LOG="$TMP_DIR/email_tunnel_cloudflared.log"
+ENV_FILE="$TMP_DIR/email_tunnel.env"
+WRANGLER_CONFIG="$PROJECT_ROOT/cloudflare/.wrangler.email-tunnel.toml"
+
+HOST="127.0.0.1"
+PORT="${PORT:-4000}"
+LOCAL_URL="http://$HOST:$PORT"
+DEFAULT_TOKEN="324b10a95e4a7ed7fcf82ca30b4986ee40200cb36b4dab70f0fb3fc9679bd1c2"
+REMPOST_INBOUND_TOKEN="${REMPOST_INBOUND_TOKEN:-$DEFAULT_TOKEN}"
+START_DB=1
+START_SERVER=1
+DEPLOY_WORKER=0
+STOP_ONLY=0
+DETACH=0
+
+usage() {
+  cat <<EOF
+Usage:
+  bin/email_tunnel [options]
+
+Options:
+  --deploy-worker   Deploy cloudflare/email-worker.mjs to rempost-email-worker-dev
+                    with the generated tunnel URL.
+  --detach          Print the URL and leave background processes running.
+  --no-db           Do not run docker compose up -d db.
+  --no-server       Do not start mix phx.server; only start the tunnel.
+  --stop            Stop processes started by this script.
+  -h, --help        Show this help.
+
+Environment:
+  REMPOST_INBOUND_TOKEN  Token shared by Phoenix and the Worker.
+  PORT                   Local Phoenix port. Defaults to 4000.
+
+Output:
+  Writes tmp/email_tunnel.env with REMPOST_INBOUND_URL.
+EOF
+}
+
+log() { printf '%s\n' "$*"; }
+warn() { printf 'warning: %s\n' "$*" >&2; }
+fail() { printf 'error: %s\n' "$*" >&2; exit 1; }
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --deploy-worker) DEPLOY_WORKER=1 ;;
+    --detach) DETACH=1 ;;
+    --no-db) START_DB=0 ;;
+    --no-server) START_SERVER=0 ;;
+    --stop) STOP_ONLY=1 ;;
+    -h|--help) usage; exit 0 ;;
+    *) fail "unknown option: $1" ;;
+  esac
+  shift
+done
+
+mkdir -p "$TMP_DIR"
+
+need() {
+  command -v "$1" >/dev/null 2>&1 || fail "missing required command: $1"
+}
+
+compose() {
+  if docker compose version >/dev/null 2>&1; then
+    docker compose "$@"
+  elif command -v docker-compose >/dev/null 2>&1; then
+    docker-compose "$@"
+  else
+    fail "neither docker compose nor docker-compose is available"
+  fi
+}
+
+pid_alive() {
+  local pid="$1"
+  [[ -n "$pid" ]] && kill -0 "$pid" >/dev/null 2>&1
+}
+
+stop_pid_file() {
+  local file="$1"
+  local name="$2"
+
+  if [[ ! -f "$file" ]]; then
+    return
+  fi
+
+  local pid
+  pid="$(cat "$file" 2>/dev/null || true)"
+  if pid_alive "$pid"; then
+    log "Stopping $name pid $pid"
+    kill "$pid" >/dev/null 2>&1 || true
+  fi
+  rm -f "$file"
+}
+
+stop_all() {
+  stop_pid_file "$TUNNEL_PID_FILE" "cloudflared"
+  stop_pid_file "$PHX_PID_FILE" "Phoenix"
+}
+
+if [[ "$STOP_ONLY" -eq 1 ]]; then
+  stop_all
+  exit 0
+fi
+
+cleanup_on_exit() {
+  if [[ "$DETACH" -eq 1 ]]; then
+    warn "leaving processes running; stop them with: bin/email_tunnel --stop"
+  else
+    stop_all
+  fi
+}
+
+trap cleanup_on_exit EXIT
+
+start_db() {
+  [[ "$START_DB" -eq 1 ]] || return
+  need docker
+
+  log "Starting Postgres container"
+  compose up -d db
+}
+
+run_migrations() {
+  [[ "$START_SERVER" -eq 1 ]] || return
+  need mix
+
+  log "Ensuring database exists and migrations are applied"
+  mix ecto.create >/dev/null 2>&1 || true
+  mix ecto.migrate
+}
+
+build_assets() {
+  [[ "$START_SERVER" -eq 1 ]] || return
+  need mix
+
+  log "Building frontend assets"
+  mix assets.build
+}
+
+start_server() {
+  [[ "$START_SERVER" -eq 1 ]] || return
+  need mix
+
+  if [[ -f "$PHX_PID_FILE" ]] && pid_alive "$(cat "$PHX_PID_FILE")"; then
+    log "Phoenix already running from this script"
+    return
+  fi
+
+  log "Starting Phoenix at $LOCAL_URL"
+  : > "$PHX_LOG"
+  REMPOST_INBOUND_TOKEN="$REMPOST_INBOUND_TOKEN" PORT="$PORT" \
+    nohup mix phx.server >>"$PHX_LOG" 2>&1 &
+  echo $! > "$PHX_PID_FILE"
+
+  for _ in $(seq 1 80); do
+    if curl -fsS "$LOCAL_URL" >/dev/null 2>&1; then
+      return
+    fi
+
+    if ! pid_alive "$(cat "$PHX_PID_FILE")"; then
+      tail -n 80 "$PHX_LOG" >&2 || true
+      fail "Phoenix exited while starting"
+    fi
+
+    sleep 0.25
+  done
+
+  tail -n 80 "$PHX_LOG" >&2 || true
+  fail "Phoenix did not become reachable at $LOCAL_URL"
+}
+
+start_tunnel() {
+  need cloudflared
+
+  if [[ -f "$TUNNEL_PID_FILE" ]] && pid_alive "$(cat "$TUNNEL_PID_FILE")"; then
+    warn "existing tunnel from this script is still running; restarting it"
+    stop_pid_file "$TUNNEL_PID_FILE" "cloudflared"
+  fi
+
+  log "Starting Cloudflare quick tunnel to $LOCAL_URL" >&2
+  : > "$TUNNEL_LOG"
+  nohup cloudflared tunnel --url "$LOCAL_URL" --no-autoupdate >>"$TUNNEL_LOG" 2>&1 &
+  echo $! > "$TUNNEL_PID_FILE"
+
+  local tunnel_url=""
+  for _ in $(seq 1 120); do
+    tunnel_url="$(grep -Eo 'https://[a-zA-Z0-9-]+\.trycloudflare\.com' "$TUNNEL_LOG" | tail -n 1 || true)"
+    if [[ -n "$tunnel_url" ]]; then
+      printf '%s' "$tunnel_url"
+      return
+    fi
+
+    if ! pid_alive "$(cat "$TUNNEL_PID_FILE")"; then
+      tail -n 80 "$TUNNEL_LOG" >&2 || true
+      fail "cloudflared exited while starting"
+    fi
+
+    sleep 0.5
+  done
+
+  tail -n 80 "$TUNNEL_LOG" >&2 || true
+  fail "cloudflared did not print a trycloudflare.com URL"
+}
+
+write_wrangler_config() {
+  local inbound_url="$1"
+
+  cat > "$WRANGLER_CONFIG" <<EOF
+name = "rempost-email-worker"
+main = "email-worker.mjs"
+compatibility_date = "2026-05-13"
+
+[vars]
+REMPOST_INBOUND_URL = "$inbound_url"
+
+[[send_email]]
+name = "inbound"
+destination_address = "xxl@remcostoeten.nl"
+
+[env.dev]
+name = "rempost-email-worker-dev"
+
+[env.dev.vars]
+REMPOST_INBOUND_URL = "$inbound_url"
+
+[[env.dev.send_email]]
+name = "inbound"
+destination_address = "xxl@remcostoeten.nl"
+EOF
+}
+
+deploy_worker() {
+  local inbound_url="$1"
+  [[ "$DEPLOY_WORKER" -eq 1 ]] || return 0
+  need npx
+
+  log "Deploying rempost-email-worker-dev with $inbound_url"
+  (
+    cd "$PROJECT_ROOT/cloudflare"
+    printf '%s' "$REMPOST_INBOUND_TOKEN" |
+      npx wrangler secret put REMPOST_INBOUND_TOKEN --config "$WRANGLER_CONFIG" --env dev
+    npx wrangler deploy --config "$WRANGLER_CONFIG" --env dev
+  )
+}
+
+start_db
+run_migrations
+build_assets
+start_server
+
+TUNNEL_URL="$(start_tunnel)"
+REMPOST_INBOUND_URL="$TUNNEL_URL/api/inbound/email"
+
+cat > "$ENV_FILE" <<EOF
+REMPOST_INBOUND_URL=$REMPOST_INBOUND_URL
+REMPOST_INBOUND_TOKEN=$REMPOST_INBOUND_TOKEN
+EOF
+
+write_wrangler_config "$REMPOST_INBOUND_URL"
+deploy_worker "$REMPOST_INBOUND_URL"
+
+cat <<EOF
+
+Rempost email tunnel is ready.
+
+Dashboard:
+  $TUNNEL_URL/
+
+Inbound endpoint:
+  $REMPOST_INBOUND_URL
+
+Worker dev config:
+  $WRANGLER_CONFIG
+
+Runtime env file:
+  $ENV_FILE
+
+Logs:
+  Phoenix:     $PHX_LOG
+  cloudflared: $TUNNEL_LOG
+
+Stop:
+  bin/email_tunnel --stop
+
+Cloudflare Email Routing still needs the xxl@remcostoeten.nl rule action set to:
+  worker -> rempost-email-worker-dev
+
+EOF
+
+if [[ "$DETACH" -eq 1 ]]; then
+  exit 0
+fi
+
+log "Keeping Phoenix and cloudflared alive. Press Ctrl-C to stop."
+
+while true; do
+  if ! pid_alive "$(cat "$PHX_PID_FILE" 2>/dev/null || true)"; then
+    tail -n 80 "$PHX_LOG" >&2 || true
+    fail "Phoenix stopped"
+  fi
+
+  if ! pid_alive "$(cat "$TUNNEL_PID_FILE" 2>/dev/null || true)"; then
+    tail -n 80 "$TUNNEL_LOG" >&2 || true
+    fail "cloudflared stopped"
+  fi
+
+  sleep 2
+done

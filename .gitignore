@@ -5,7 +5,13 @@
 /.fetch
 erl_crash.dump
 *.ez
+/priv/static/assets/
+/priv/static/cache_manifest.json
 
 # bin/dev TUI runtime files
 /tmp/dev_server.pid
 /tmp/dev_server.log
+/tmp/email_tunnel_*.pid
+/tmp/email_tunnel_*.log
+/tmp/email_tunnel.env
+/cloudflare/.wrangler.email-tunnel.toml
