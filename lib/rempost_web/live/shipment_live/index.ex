@@ -407,17 +407,6 @@ defmodule RempostWeb.ShipmentLive.Index do
 
   def master_access_placeholder, do: "Master password"
 
-  # Temporary stubs — referenced by template until Task 8 rewrites index.html.heex
-  def step_active?(step_key, step), do: step_active_dot?(step_key, step)
-  def address_label("house_number"), do: "Huisnummer"
-  def address_label(_mode), do: "Postcode"
-  def address_placeholder("house_number"), do: "Bijvoorbeeld 212"
-  def address_placeholder(_mode), do: "Bijvoorbeeld 2035 PH"
-  def address_toggle("house_number"), do: {"postcode", "Gebruik postcode in plaats daarvan"}
-
-  def address_toggle(_mode),
-    do: {"house_number", "Ik weet mijn postcode niet, maar wel mijn huisnummer"}
-
   def step_active_dot?(:lookup, _step), do: true
   def step_active_dot?(:results, :results), do: true
   def step_active_dot?(_, _), do: false

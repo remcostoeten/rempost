@@ -20,13 +20,13 @@
 
       <div class="flex items-center gap-4">
         <div class="flex items-center gap-2" aria-label="Voortgang">
-          <%= for {step_key, label} <- [identify: "Naam", verify: "Controle", results: "Resultaat"] do %>
+          <%= for {step_key, label} <- [lookup: "Zoek", results: "Resultaat"] do %>
             <span
               title={label}
               class={[
                 "h-1 rounded-full transition-all duration-300",
-                step_active?(step_key, @step) && "w-9 bg-[#db8142]",
-                !step_active?(step_key, @step) && "w-5 bg-[#d8d2c8]"
+                step_active_dot?(step_key, @step) && "w-9 bg-[#db8142]",
+                !step_active_dot?(step_key, @step) && "w-5 bg-[#d8d2c8]"
               ]}
             >
             </span>
@@ -48,45 +48,86 @@
       @step == :results && "items-center py-14",
       @step != :results && "items-center py-20"
     ]}>
-      <%= if @step == :identify do %>
+      <%= if @step == :lookup do %>
         <section class="w-full animate-[rempost-step-in_420ms_cubic-bezier(0.22,1,0.36,1)]">
           <h1 class="font-serif text-5xl leading-[1.05] text-[#241914] sm:text-6xl">
-            Hi, zoek je<br />
-            <em class="font-normal text-[#db8142]">je bestelling?</em>
+            Hé, wie ben je?<br />
+            <em class="font-normal text-[#db8142]">We zoeken je pakket.</em>
           </h1>
 
           <p class="mt-5 max-w-lg text-lg leading-8 text-[#70645d]">
-            Vul je naam in. We zoeken daarna in de doorgestuurde order- en trackingmails.
+            Typ je naam zoals die op de bestelling staat.
           </p>
 
-          <.form for={%{}} phx-submit="identify" as={:lookup} class="mt-11">
-            <div>
+          <.form for={%{}} phx-submit="submit" as={:lookup} class="mt-11" autocomplete="off">
+            <div class="relative">
               <label class="mb-3 block text-xs font-semibold uppercase tracking-[0.16em] text-[#6b625c]">
                 Naam op bestelling
               </label>
 
               <div class={[
                 "flex h-16 items-center gap-4 rounded-2xl border bg-white/80 px-5 shadow-sm transition-colors",
-                @lookup_status == :error && "border-red-300 ring-2 ring-red-100",
-                @lookup_status != :error && "border-[#ded6ca] focus-within:border-[#db8142]"
+                @lookup_error && "border-red-300 ring-2 ring-red-100",
+                !@lookup_error && "border-[#ded6ca] focus-within:border-[#db8142]"
               ]}>
                 <.icon name="hero-magnifying-glass" class="h-5 w-5 shrink-0 text-[#756961]" />
                 <input
                   id="lookup_name"
                   type="text"
                   name="lookup[name]"
-                  value={@lookup_name}
-                  autocomplete="name"
+                  value={@query}
+                  phx-keyup="suggest"
+                  phx-debounce="200"
+                  autocomplete="off"
                   autofocus
-                  placeholder="Bijvoorbeeld Iduna Bink"
+                  placeholder="Begin met typen..."
                   class="min-w-0 flex-1 bg-transparent text-lg text-[#2b211c] outline-none placeholder:text-[#aaa39b]"
                 />
-                <%= if @lookup_status == :error do %>
+                <%= if @lookup_error do %>
                   <.icon name="hero-exclamation-circle" class="h-5 w-5 shrink-0 text-red-500" />
                 <% end %>
               </div>
 
-              <%= if @lookup_error && @step == :identify do %>
+              <%= if @suggestions != [] do %>
+                <ul class="mt-2 overflow-hidden rounded-2xl border border-[#ded6ca] bg-white/95 shadow-sm">
+                  <%= for s <- @suggestions do %>
+                    <li>
+                      <button
+                        type="button"
+                        phx-click="pick"
+                        phx-value-name={s.name}
+                        class="flex w-full items-center justify-between px-5 py-3 text-left text-sm hover:bg-[#f5f0e6]"
+                      >
+                        <span class="font-medium text-[#2b211c]"><%= s.name %></span>
+                        <span class="text-xs text-[#9a8e85]">
+                          <%= s.shipment_count %>
+                          <%= if s.shipment_count == 1, do: "pakket", else: "pakketten" %>
+                        </span>
+                      </button>
+                    </li>
+                  <% end %>
+                </ul>
+              <% end %>
+
+              <%= if @candidates != [] do %>
+                <div class="mt-3 rounded-2xl border border-[#ded6ca] bg-white/85 p-3 text-sm text-[#5f534c]">
+                  <p class="px-2 pb-2 text-xs uppercase tracking-[0.16em] text-[#6b625c]">
+                    Meerdere matches — kies er een
+                  </p>
+                  <%= for name <- @candidates do %>
+                    <button
+                      type="button"
+                      phx-click="pick"
+                      phx-value-name={name}
+                      class="block w-full rounded-xl px-3 py-2 text-left hover:bg-[#f5f0e6]"
+                    >
+                      <%= name %>
+                    </button>
+                  <% end %>
+                </div>
+              <% end %>
+
+              <%= if @lookup_error do %>
                 <p class="mt-2 text-sm text-red-600"><%= @lookup_error %></p>
               <% end %>
             </div>
@@ -95,9 +136,9 @@
               <button
                 type="submit"
                 class="group inline-flex h-14 items-center gap-3 rounded-2xl bg-[#4a2c22] px-7 text-base font-semibold text-white shadow-sm transition hover:bg-[#3b231b] disabled:opacity-60"
-                phx-disable-with="Controleren..."
+                phx-disable-with="Zoeken..."
               >
-                Ga verder
+                Zoek pakket
                 <span class="transition-transform group-hover:translate-x-0.5">→</span>
               </button>
             </div>
@@ -124,93 +165,11 @@
               <button
                 type="submit"
                 class="inline-flex h-12 items-center justify-center rounded-xl bg-[#4a2c22] px-5 text-sm font-semibold text-white"
-                phx-disable-with="Openen..."
               >
-                Open alle zendingen
+                Open
               </button>
             </.form>
           </details>
-        </section>
-      <% end %>
-
-      <%= if @step == :verify do %>
-        <% {next_mode, toggle_label} = address_toggle(@verification_mode) %>
-
-        <section class="w-full animate-[rempost-step-in_420ms_cubic-bezier(0.22,1,0.36,1)]">
-          <h1 class="font-serif text-5xl leading-[1.05] text-[#241914] sm:text-6xl">
-            Welke <%= String.downcase(address_label(@verification_mode)) %><br />
-            <em class="font-normal text-[#db8142]">hoort erbij?</em>
-          </h1>
-
-          <p class="mt-5 max-w-lg text-lg leading-8 text-[#70645d]">
-            Hi <span class="font-medium capitalize text-[#2b211c]"><%= @lookup_name %></span>,
-            nog een korte controle zodat we alleen jouw zendingen tonen.
-          </p>
-
-          <.form for={%{}} phx-submit="verify_address" as={:verification} class="mt-11">
-            <input type="hidden" name="verification[mode]" value={@verification_mode} />
-
-            <div>
-              <label class="mb-3 block text-xs font-semibold uppercase tracking-[0.16em] text-[#6b625c]">
-                <%= address_label(@verification_mode) %>
-              </label>
-
-              <div class={[
-                "flex h-16 items-center gap-4 rounded-2xl border bg-white/80 px-5 shadow-sm transition-colors",
-                (@lookup_error || @verification_error) && "border-red-300 ring-2 ring-red-100",
-                !(@lookup_error || @verification_error) && "border-[#ded6ca] focus-within:border-[#db8142]"
-              ]}>
-                <.icon name="hero-map-pin" class="h-5 w-5 shrink-0 text-[#756961]" />
-                <input
-                  id="verification_value"
-                  type="text"
-                  name="verification[value]"
-                  value={@verification_value}
-                  autocomplete="postal-code"
-                  autofocus
-                  placeholder={address_placeholder(@verification_mode)}
-                  class="min-w-0 flex-1 bg-transparent text-lg text-[#2b211c] outline-none placeholder:text-[#aaa39b]"
-                />
-                <%= if @lookup_error || @verification_error do %>
-                  <.icon name="hero-exclamation-circle" class="h-5 w-5 shrink-0 text-red-500" />
-                <% end %>
-              </div>
-
-              <%= if @lookup_error || @verification_error do %>
-                <p class="mt-2 text-sm text-red-600">
-                  <%= @lookup_error || @verification_error %>
-                </p>
-              <% end %>
-            </div>
-
-            <button
-              type="button"
-              phx-click="switch_verification_mode"
-              phx-value-mode={next_mode}
-              class="mt-4 text-base text-[#70645d] underline-offset-4 transition hover:text-[#2b211c] hover:underline"
-            >
-              <%= toggle_label %>
-            </button>
-
-            <div class="mt-7 flex flex-wrap items-center gap-4">
-              <button
-                type="submit"
-                class="group inline-flex h-14 items-center gap-3 rounded-2xl bg-[#4a2c22] px-7 text-base font-semibold text-white shadow-sm transition hover:bg-[#3b231b] disabled:opacity-60"
-                phx-disable-with="Zendingen zoeken..."
-              >
-                Zoek zendingen
-                <span class="transition-transform group-hover:translate-x-0.5">→</span>
-              </button>
-
-              <button
-                type="button"
-                phx-click="edit_lookup"
-                class="text-sm font-medium text-[#70645d] transition hover:text-[#2b211c]"
-              >
-                Naam wijzigen
-              </button>
-            </div>
-          </.form>
         </section>
       <% end %>
 
@@ -231,11 +190,11 @@
 
             <div class="flex items-center gap-4">
               <span class="hidden text-xs text-[#70645d] sm:inline">
-                <%= identity_label(@lookup_name, @master_access?) %>
+                <%= if @master_access?, do: "Alle zendingen", else: @lookup_name %>
               </span>
               <button
                 type="button"
-                phx-click="back_to_verify"
+                phx-click="clear"
                 class="text-sm text-[#70645d] transition hover:text-[#2b211c]"
               >
                 <%= if @master_access?, do: "Terug", else: "Opnieuw zoeken" %>
