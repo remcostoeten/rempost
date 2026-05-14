@@ -3,7 +3,6 @@ defmodule Rempost.Shipments do
 
   alias Rempost.{
     Emails.InboundEmail,
-    Orders.Order,
     Repo,
     Shipments.Shipment,
     Tracking.TrackingEvent
@@ -87,41 +86,8 @@ defmodule Rempost.Shipments do
     |> Repo.all()
   end
 
-  def lookup_public_shipments(name, mode, value, limit \\ 25) do
-    with {:ok, order_address_dynamic} <- public_address_match(mode, value, :order),
-         {:ok, shipment_address_dynamic} <- public_address_match(mode, value, :shipment),
-         name when is_binary(name) <- normalize_text(name) do
-      term = "%#{name}%"
-      verified_names = verified_customer_names(term, order_address_dynamic)
-
-      Shipment
-      |> join(:inner, [s], o in assoc(s, :order))
-      |> where([_s, o], o.customer_name in ^verified_names)
-      |> where(^public_shipment_scope(shipment_address_dynamic))
-      |> order_by([s], desc: s.updated_at)
-      |> limit(^limit)
-      |> preload([_s, o], order: o)
-      |> Repo.all()
-      |> Enum.uniq_by(&normalized_tracking_number/1)
-    else
-      _ -> []
-    end
-  end
-
-  defp verified_customer_names(term, address_dynamic) do
-    Order
-    |> where([o], ilike(o.customer_name, ^term))
-    |> where(^address_dynamic)
-    |> distinct(true)
-    |> select([o], o.customer_name)
-    |> Repo.all()
-  end
-
-  defp normalized_tracking_number(%Shipment{tracking_number: tracking_number}) do
-    tracking_number
-    |> to_string()
-    |> String.upcase()
-  end
+  # Deprecated stub for ShipmentLive.Index — replaced by lookup_by_recipient/1 in Task 7.
+  def lookup_public_shipments(_name, _mode, _value, _limit \\ 25), do: []
 
   def stats do
     base = Shipment
@@ -224,87 +190,7 @@ defmodule Rempost.Shipments do
     end)
   end
 
-  defp public_address_match(mode, value, binding) do
-    case {mode, normalize_text(value)} do
-      {"postcode", value} when is_binary(value) ->
-        postal_code = normalize_postal_code(value)
-        {:ok, address_dynamic(binding, :postal_code, postal_code)}
-
-      {"house_number", value} when is_binary(value) ->
-        {street, house_number} = split_address(value)
-
-        if is_binary(street) and is_binary(house_number) do
-          street = "%#{street}%"
-          {:ok, address_dynamic(binding, :street_house_number, {street, house_number})}
-        else
-          house_number = normalize_house_number(value)
-          {:ok, address_dynamic(binding, :house_number, house_number)}
-        end
-
-      _ ->
-        :error
-    end
-  end
-
-  defp address_dynamic(:order, :postal_code, postal_code),
-    do: dynamic([o], o.customer_postal_code == ^postal_code)
-
-  defp address_dynamic(:order, :street_house_number, {street, house_number}),
-    do:
-      dynamic([o], ilike(o.customer_street, ^street) and o.customer_house_number == ^house_number)
-
-  defp address_dynamic(:order, :house_number, house_number),
-    do: dynamic([o], o.customer_house_number == ^house_number)
-
-  defp address_dynamic(:shipment, :postal_code, postal_code),
-    do: dynamic([_s, o], o.customer_postal_code == ^postal_code)
-
-  defp address_dynamic(:shipment, :street_house_number, {street, house_number}),
-    do:
-      dynamic(
-        [_s, o],
-        ilike(o.customer_street, ^street) and o.customer_house_number == ^house_number
-      )
-
-  defp address_dynamic(:shipment, :house_number, house_number),
-    do: dynamic([_s, o], o.customer_house_number == ^house_number)
-
-  defp public_shipment_scope(address_dynamic) do
-    dynamic(
-      [_s, o],
-      ^address_dynamic or
-        (is_nil(o.customer_postal_code) and is_nil(o.customer_street) and
-           is_nil(o.customer_house_number))
-    )
-  end
-
-  defp split_address(value) do
-    case Regex.run(~r/^(.+?)\s+(\d{1,5}\s?[A-Za-z]?(?:-\d+)?)$/, value) do
-      [_full, street, house_number] ->
-        {normalize_text(street), normalize_house_number(house_number)}
-
-      _ ->
-        {nil, nil}
-    end
-  end
-
-  defp normalize_text(nil), do: nil
-  defp normalize_text(""), do: nil
-
-  defp normalize_text(value) do
-    value
-    |> String.trim()
-    |> String.replace(~r/\s+/, " ")
-    |> blank_to_nil()
-  end
-
   defp normalize_postal_code(value) do
-    value
-    |> String.upcase()
-    |> String.replace(~r/\s+/, "")
-  end
-
-  defp normalize_house_number(value) do
     value
     |> String.upcase()
     |> String.replace(~r/\s+/, "")
@@ -351,6 +237,4 @@ defmodule Rempost.Shipments do
     end
   end
 
-  defp blank_to_nil(""), do: nil
-  defp blank_to_nil(value), do: value
 end
