@@ -43,7 +43,7 @@ Accepted payload fields (Cloudflare-friendly aliases supported):
 
 Public:
 
-- `/` and `/portal` for self-service shipment search
+- `/` and `/portal` for self-service shipment search by recipient name with live autocomplete
 - `/shipments` for the same shipment search surface
 - `/shipments/:id` for shipment timeline/details with tracking data hidden until verification
 - `POST /api/inbound/email` for Cloudflare inbound delivery, protected by inbound token
@@ -68,20 +68,17 @@ Required before sharing outside localhost:
 | `REMPOST_INBOUND_TOKEN` | bearer-style shared token for `POST /api/inbound/email` |
 | `REMPOST_ADMIN_USER` | Basic Auth username for admin routes |
 | `REMPOST_ADMIN_PASSWORD` | Basic Auth password for admin routes |
-| `REMPOST_PORTAL_ACCESS_ANSWER` | shared answer for revealing public tracking details |
 | `REMPOST_PORTAL_MASTER_PASSWORD` | master password for opening all shipments in the portal |
 
 Optional:
 
 | variable | default | purpose |
 | --- | --- | --- |
-| `REMPOST_PORTAL_VERIFICATION_TTL_SECONDS` | `3600` | browser-session verification TTL |
 | `DATABASE_URL` | required in prod | Postgres connection URL |
 | `POOL_SIZE` | `10` | Ecto connection pool size |
 
 Production requires inbound/admin secrets at boot. If admin credentials are
-missing at runtime, admin routes fail closed with `503`. If the portal access
-answer is missing, tracking reveal fails closed. If the master password is
+missing at runtime, admin routes fail closed with `503`. If the master password is
 missing, the master portal shortcut stays closed.
 
 ## Local database drift
