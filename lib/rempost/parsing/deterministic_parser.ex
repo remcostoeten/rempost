@@ -4,6 +4,7 @@ defmodule Rempost.Parsing.DeterministicParser do
 
   def parse(email) do
     raw = [email.subject, email.raw_text] |> Enum.join("\n")
+
     %{
       carrier: carrier(raw),
       tracking_number: extract(@dhl_regex, raw),
@@ -25,6 +26,7 @@ defmodule Rempost.Parsing.DeterministicParser do
 
   defp status(raw) do
     text = String.downcase(raw)
+
     cond do
       String.contains?(text, "delivered") -> :delivered
       String.contains?(text, "in transit") -> :in_transit
@@ -39,6 +41,7 @@ defmodule Rempost.Parsing.DeterministicParser do
       [first | _] -> first
     end
   end
+
   defp extract_group(regex, raw, idx) do
     case Regex.run(regex, raw) do
       nil -> nil

@@ -13,14 +13,23 @@ defmodule Rempost.Emails.InboundEmail do
     field :raw_html, :string
     field :status, Ecto.Enum, values: @statuses, default: :pending
     field :parse_error, :string
-    belongs_to :workspace, Rempost.Workspaces.Workspace
     timestamps(type: :utc_datetime)
   end
 
   def changeset(email, attrs) do
     email
-    |> cast(attrs, [:workspace_id, :message_id, :from_email, :subject, :received_at, :raw_headers, :raw_text, :raw_html, :status, :parse_error])
-    |> validate_required([:workspace_id, :message_id, :from_email, :received_at, :raw_text])
-    |> unique_constraint([:workspace_id, :message_id])
+    |> cast(attrs, [
+      :message_id,
+      :from_email,
+      :subject,
+      :received_at,
+      :raw_headers,
+      :raw_text,
+      :raw_html,
+      :status,
+      :parse_error
+    ])
+    |> validate_required([:message_id, :from_email, :received_at, :raw_text])
+    |> unique_constraint(:message_id)
   end
 end

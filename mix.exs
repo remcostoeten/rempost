@@ -10,6 +10,7 @@ defmodule Rempost.MixProject do
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
       deps: deps(),
+      listeners: [Phoenix.CodeReloader],
       compilers: Mix.compilers(),
       dialyzer: [plt_add_apps: [:mix]]
     ]
@@ -38,7 +39,13 @@ defmodule Rempost.MixProject do
       {:phoenix_live_dashboard, "~> 0.8.3"},
       {:esbuild, "~> 0.8", runtime: Mix.env() == :dev},
       {:tailwind, "~> 0.2", runtime: Mix.env() == :dev},
-      {:heroicons, github: "tailwindlabs/heroicons", tag: "v2.1.5", sparse: "optimized", app: false, compile: false, depth: 1},
+      {:heroicons,
+       github: "tailwindlabs/heroicons",
+       tag: "v2.1.5",
+       sparse: "optimized",
+       app: false,
+       compile: false,
+       depth: 1},
       {:swoosh, "~> 1.16"},
       {:finch, "~> 0.18"},
       {:telemetry_metrics, "~> 1.0"},

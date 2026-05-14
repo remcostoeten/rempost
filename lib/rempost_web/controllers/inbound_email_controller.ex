@@ -4,7 +4,6 @@ defmodule RempostWeb.InboundEmailController do
 
   @required_fields ~w(message_id from_email raw_text)a
 
-
   def index(conn, params) do
     with :ok <- authorize(conn, params) do
       workspace_id = params["workspace_id"] || Rempost.Runtime.workspace_id()
@@ -25,7 +24,12 @@ defmodule RempostWeb.InboundEmailController do
           }
         end)
 
-      json(conn, %{workspace_id: workspace_id, count: length(emails), limit: limit, emails: emails})
+      json(conn, %{
+        workspace_id: workspace_id,
+        count: length(emails),
+        limit: limit,
+        emails: emails
+      })
     else
       {:error, :unauthorized} ->
         json(conn |> put_status(:unauthorized), %{error: "unauthorized"})
@@ -54,15 +58,26 @@ defmodule RempostWeb.InboundEmailController do
             json(conn |> put_status(:accepted), %{id: email.id, status: "queued"})
 
           {:error, reason} ->
-            Logger.warning("Inbound email ingestion failed", reason: inspect(reason), workspace_id: attrs.workspace_id, message_id: attrs.message_id)
+            Logger.warning("Inbound email ingestion failed",
+              reason: inspect(reason),
+              workspace_id: attrs.workspace_id,
+              message_id: attrs.message_id
+            )
+
             json(conn |> put_status(:unprocessable_entity), %{error: "unable_to_ingest_email"})
         end
       else
         {:error, :missing_required_fields} ->
-          json(conn |> put_status(:bad_request), %{error: "missing_required_fields", required: Enum.map(@required_fields, &Atom.to_string/1)})
+          json(conn |> put_status(:bad_request), %{
+            error: "missing_required_fields",
+            required: Enum.map(@required_fields, &Atom.to_string/1)
+          })
 
         {:error, :invalid_received_at} ->
-          json(conn |> put_status(:bad_request), %{error: "invalid_received_at", format: "ISO8601"})
+          json(conn |> put_status(:bad_request), %{
+            error: "invalid_received_at",
+            format: "ISO8601"
+          })
       end
     else
       {:error, :unauthorized} ->

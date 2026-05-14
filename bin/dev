@@ -1,0 +1,500 @@
+#!/usr/bin/env bash
+# dev — fuzzy-searchable TUI wrapper around `mix` for the Rempost project.
+# Run from anywhere inside the repo; it cd's to the project root automatically.
+
+set -uo pipefail
+
+# ─── locate project root ──────────────────────────────────────────────────────
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+cd "$PROJECT_ROOT"
+
+PID_FILE="$PROJECT_ROOT/tmp/dev_server.pid"
+LOG_FILE="$PROJECT_ROOT/tmp/dev_server.log"
+mkdir -p "$PROJECT_ROOT/tmp"
+
+# ─── styling ──────────────────────────────────────────────────────────────────
+if [[ -t 1 ]]; then
+  BOLD=$'\033[1m'; DIM=$'\033[2m'; RESET=$'\033[0m'
+  RED=$'\033[31m'; GREEN=$'\033[32m'; YELLOW=$'\033[33m'
+  BLUE=$'\033[34m'; MAGENTA=$'\033[35m'; CYAN=$'\033[36m'; GREY=$'\033[90m'
+else
+  BOLD=""; DIM=""; RESET=""; RED=""; GREEN=""; YELLOW=""; BLUE=""; MAGENTA=""; CYAN=""; GREY=""
+fi
+
+say()      { printf '%s\n' "$*"; }
+info()     { printf '%s%s ›%s %s\n' "$BOLD" "$BLUE" "$RESET" "$*"; }
+ok()       { printf '%s ✓%s %s\n' "$GREEN" "$RESET" "$*"; }
+warn()     { printf '%s ⚠%s %s\n' "$YELLOW" "$RESET" "$*"; }
+err()      { printf '%s ✗%s %s\n' "$RED" "$RESET" "$*" >&2; }
+hr()       { printf '%s%s%s\n' "$GREY" "────────────────────────────────────────────────────────" "$RESET"; }
+
+banner() {
+  local title="$1"
+  printf '\n%s┌─ %s%s%s ─────────────────────────────────%s\n' \
+    "$CYAN" "$BOLD" "$title" "$RESET$CYAN" "$RESET"
+  printf '%s│%s\n' "$CYAN" "$RESET"
+}
+
+require() {
+  command -v "$1" >/dev/null 2>&1 || { err "missing required tool: $1"; return 1; }
+}
+
+confirm() {
+  # confirm "Question?" → returns 0 if user types y/Y
+  local prompt="$1"
+  printf '%s ?%s %s %s[y/N]%s ' "$YELLOW" "$RESET" "$prompt" "$DIM" "$RESET"
+  local ans
+  read -r ans </dev/tty || true
+  [[ "${ans,,}" == "y" || "${ans,,}" == "yes" ]]
+}
+
+pause() {
+  printf '\n%spress any key to return to menu…%s' "$DIM" "$RESET"
+  read -rsn1 </dev/tty || true
+  printf '\n'
+}
+
+# ─── docker-compose shim ──────────────────────────────────────────────────────
+compose() {
+  if docker compose version >/dev/null 2>&1; then
+    docker compose "$@"
+  elif command -v docker-compose >/dev/null 2>&1; then
+    docker-compose "$@"
+  else
+    err "neither 'docker compose' nor 'docker-compose' is available"
+    return 1
+  fi
+}
+
+# ─── server state ─────────────────────────────────────────────────────────────
+server_pid() {
+  # Prefer the PID we recorded; fall back to scanning for a Phoenix beam.
+  if [[ -f "$PID_FILE" ]]; then
+    local pid; pid="$(cat "$PID_FILE" 2>/dev/null || true)"
+    if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
+      printf '%s' "$pid"; return 0
+    fi
+    rm -f "$PID_FILE"
+  fi
+  # Detect a beam started via `mix phx.server` from this project root.
+  pgrep -f "phx.server" 2>/dev/null | head -n1
+}
+
+server_running() { [[ -n "$(server_pid)" ]]; }
+
+detect_port() {
+  # Try to read from log first (authoritative once Phoenix boots), then config.
+  if [[ -f "$LOG_FILE" ]]; then
+    local p; p="$(grep -oE 'http://[^ ]*:[0-9]+' "$LOG_FILE" | tail -n1 | grep -oE '[0-9]+$' || true)"
+    [[ -n "$p" ]] && { printf '%s' "$p"; return; }
+  fi
+  local p; p="$(grep -oE 'port:\s*[0-9]+' config/dev.exs 2>/dev/null | head -n1 | grep -oE '[0-9]+' || true)"
+  printf '%s' "${p:-4000}"
+}
+
+open_url() {
+  local url="$1"
+  if command -v xdg-open >/dev/null 2>&1; then xdg-open "$url" >/dev/null 2>&1 &
+  elif command -v open >/dev/null 2>&1; then open "$url" >/dev/null 2>&1 &
+  else warn "no opener found; visit $url manually"; fi
+}
+
+# ─── actions ──────────────────────────────────────────────────────────────────
+action_start_server() {
+  banner "Start server"
+  if server_running; then
+    warn "server already running (pid $(server_pid)) on http://localhost:$(detect_port)"
+    pause; return
+  fi
+  info "launching mix phx.server in background…"
+  : > "$LOG_FILE"
+  nohup mix phx.server >>"$LOG_FILE" 2>&1 &
+  echo $! > "$PID_FILE"
+  # Wait a moment for Phoenix to bind & print its URL.
+  local i
+  for i in $(seq 1 40); do
+    grep -q 'Access ' "$LOG_FILE" 2>/dev/null && break
+    grep -qi 'error\|crash\|cannot' "$LOG_FILE" 2>/dev/null && break
+    sleep 0.25
+  done
+  if server_running; then
+    ok "server up at $(printf '%shttp://localhost:%s%s' "$CYAN" "$(detect_port)" "$RESET") (pid $(server_pid))"
+    say "${DIM}logs: $LOG_FILE${RESET}"
+  else
+    err "server failed to start — tailing last log lines:"
+    tail -n 20 "$LOG_FILE" 2>/dev/null
+  fi
+  pause
+}
+
+action_stop_server() {
+  banner "Stop server"
+  local pid; pid="$(server_pid)"
+  if [[ -z "$pid" ]]; then
+    warn "no Phoenix server appears to be running"
+    pause; return
+  fi
+  info "stopping pid $pid…"
+  kill "$pid" 2>/dev/null || true
+  local i
+  for i in $(seq 1 20); do
+    kill -0 "$pid" 2>/dev/null || break
+    sleep 0.25
+  done
+  if kill -0 "$pid" 2>/dev/null; then
+    warn "still alive — sending SIGKILL"
+    kill -9 "$pid" 2>/dev/null || true
+  fi
+  rm -f "$PID_FILE"
+  ok "server stopped"
+  pause
+}
+
+action_restart_server() {
+  banner "Restart server"
+  if server_running; then
+    info "stopping current server (pid $(server_pid))…"
+    local pid; pid="$(server_pid)"
+    kill "$pid" 2>/dev/null || true
+    local i
+    for i in $(seq 1 20); do
+      kill -0 "$pid" 2>/dev/null || break
+      sleep 0.25
+    done
+    rm -f "$PID_FILE"
+  fi
+  info "starting fresh…"
+  : > "$LOG_FILE"
+  nohup mix phx.server >>"$LOG_FILE" 2>&1 &
+  echo $! > "$PID_FILE"
+  local i
+  for i in $(seq 1 40); do
+    grep -q 'Access ' "$LOG_FILE" 2>/dev/null && break
+    sleep 0.25
+  done
+  if server_running; then
+    ok "restarted on http://localhost:$(detect_port)"
+  else
+    err "restart failed — last log lines:"
+    tail -n 20 "$LOG_FILE" 2>/dev/null
+  fi
+  pause
+}
+
+action_restart_fully() {
+  banner "Restart dev --fully"
+  warn "this will DROP the database, recreate it, run migrations, and restart the server"
+  confirm "proceed?" || { say "${DIM}cancelled${RESET}"; pause; return; }
+
+  if server_running; then
+    info "stopping server first…"
+    local pid; pid="$(server_pid)"
+    kill "$pid" 2>/dev/null || true
+    local i
+    for i in $(seq 1 20); do
+      kill -0 "$pid" 2>/dev/null || break; sleep 0.25
+    done
+    rm -f "$PID_FILE"
+  fi
+
+  info "mix ecto.drop"
+  mix ecto.drop || { err "ecto.drop failed"; pause; return; }
+  info "mix ecto.create"
+  mix ecto.create || { err "ecto.create failed"; pause; return; }
+  info "mix ecto.migrate"
+  mix ecto.migrate || { err "ecto.migrate failed"; pause; return; }
+
+  info "starting server…"
+  : > "$LOG_FILE"
+  nohup mix phx.server >>"$LOG_FILE" 2>&1 &
+  echo $! > "$PID_FILE"
+  local i
+  for i in $(seq 1 40); do
+    grep -q 'Access ' "$LOG_FILE" 2>/dev/null && break
+    sleep 0.25
+  done
+  if server_running; then
+    local port; port="$(detect_port)"
+    ok "fresh dev environment running at ${CYAN}http://localhost:$port${RESET}"
+  else
+    err "server failed to start — last log lines:"
+    tail -n 20 "$LOG_FILE" 2>/dev/null
+  fi
+  pause
+}
+
+action_server_controls() {
+  if ! server_running; then
+    banner "Server controls"
+    warn "server is not running — start it first"
+    pause; return
+  fi
+  while true; do
+    clear
+    local port; port="$(detect_port)"
+    local pid;  pid="$(server_pid)"
+    printf '\n  %s%sPhoenix is running%s\n' "$BOLD" "$GREEN" "$RESET"
+    printf '  %s──────────────────%s\n' "$GREY" "$RESET"
+    printf '  url   %s%shttp://localhost:%s%s\n' "$BOLD" "$CYAN" "$port" "$RESET"
+    printf '  pid   %s%s%s\n' "$BOLD" "$pid" "$RESET"
+    printf '  logs  %s%s%s\n\n' "$DIM" "$LOG_FILE" "$RESET"
+    printf '  %s[o]%s open in browser    %s[r]%s restart    %s[l]%s tail logs    %s[q]%s back\n\n' \
+      "$CYAN" "$RESET" "$CYAN" "$RESET" "$CYAN" "$RESET" "$CYAN" "$RESET"
+    printf '  %schoice ›%s ' "$DIM" "$RESET"
+    local key
+    read -rsn1 key </dev/tty || break
+    case "$key" in
+      o|O) open_url "http://localhost:$port"; ok "opened http://localhost:$port"; sleep 0.6 ;;
+      r|R) say ""; action_restart_server; ;;
+      l|L) say ""; info "tailing $LOG_FILE — Ctrl-C to return"; trap 'true' INT; tail -n 40 -f "$LOG_FILE"; trap - INT; ;;
+      q|Q|$'\e') return ;;
+      *) ;;
+    esac
+  done
+}
+
+action_docker_up() {
+  banner "Start Docker (docker compose up -d)"
+  if [[ ! -f docker-compose.yml ]]; then
+    err "no docker-compose.yml found in project root"
+    pause; return
+  fi
+  compose up -d
+  local rc=$?
+  if [[ $rc -eq 0 ]]; then
+    ok "containers started"
+    compose ps
+  else
+    err "docker compose up failed (exit $rc)"
+  fi
+  pause
+}
+
+# ─── deps ─────────────────────────────────────────────────────────────────────
+action_deps_menu() {
+  while true; do
+    local choice
+    choice="$(printf '%s\n' \
+      "check     │ check whether deps are current (mix hex.outdated)" \
+      "install   │ install / update current deps (mix deps.get)" \
+      "add       │ add a new dependency (prompts for spec)" \
+      "unused    │ detect and remove unused deps" \
+      "back      │ ← return to main menu" \
+      | fzf --ansi --reverse --height=40% --prompt='deps › ' \
+            --header='select an action' --no-info)" || return
+    local action="${choice%% *}"
+    case "$action" in
+      check)   banner "Check deps"
+               info "mix hex.outdated"
+               mix hex.outdated || true
+               pause ;;
+      install) banner "Install deps"
+               mix deps.get
+               pause ;;
+      add)     action_deps_add ;;
+      unused)  action_deps_unused ;;
+      back|"") return ;;
+    esac
+  done
+}
+
+action_deps_add() {
+  banner "Add dependency"
+  printf '  %spackage name%s (e.g. %sjason%s or %sjason ~> 1.4%s): ' \
+    "$BOLD" "$RESET" "$CYAN" "$RESET" "$CYAN" "$RESET"
+  local spec
+  read -r spec </dev/tty || true
+  [[ -z "$spec" ]] && { warn "no input"; pause; return; }
+
+  local name version
+  name="${spec%% *}"
+  version="${spec#"$name"}"
+  version="${version# }"
+  [[ -z "$version" ]] && version="~> 0.1"
+
+  local line="      {:$name, \"$version\"},"
+  warn "about to append to mix.exs deps:"
+  printf '    %s%s%s\n' "$DIM" "$line" "$RESET"
+  confirm "append and run mix deps.get?" || { say "${DIM}cancelled${RESET}"; pause; return; }
+
+  # Insert just before the closing `]` of the deps list. Best-effort sed.
+  if grep -qE '^\s*defp deps do' mix.exs; then
+    awk -v line="$line" '
+      BEGIN { in_deps=0; injected=0 }
+      /defp deps do/ { in_deps=1 }
+      {
+        if (in_deps && !injected && $0 ~ /^\s*\]\s*$/) {
+          print line
+          injected=1
+          in_deps=0
+        }
+        print
+      }
+    ' mix.exs > mix.exs.tmp && mv mix.exs.tmp mix.exs
+    ok "added to mix.exs"
+    info "mix deps.get"
+    mix deps.get || err "deps.get failed — you may need to edit mix.exs manually"
+  else
+    err "couldn't locate the deps function in mix.exs — please add manually"
+  fi
+  pause
+}
+
+action_deps_unused() {
+  banner "Unused dependencies"
+  info "scanning with mix deps.unlock --check-unused"
+  local output exit_code
+  output="$(mix deps.unlock --check-unused 2>&1)" || true
+  # `--check-unused` lists names if any are unused.
+  local unused
+  unused="$(printf '%s\n' "$output" | grep -E '^\s+\* ' | sed 's/^\s*\* //' || true)"
+
+  if [[ -z "$unused" ]]; then
+    ok "no unused dependencies detected"
+    pause; return
+  fi
+
+  warn "unused deps found:"
+  printf '%s\n' "$unused" | sed 's/^/  • /'
+  echo
+  printf '  %s[a]%s remove all    %s[s]%s select one-by-one    %s[q]%s cancel  › ' \
+    "$CYAN" "$RESET" "$CYAN" "$RESET" "$CYAN" "$RESET"
+  local key
+  read -rsn1 key </dev/tty || true
+  echo
+  case "$key" in
+    a|A)
+      confirm "remove ALL listed unused deps from mix.lock and build?" || { say "${DIM}cancelled${RESET}"; pause; return; }
+      while IFS= read -r dep; do
+        [[ -z "$dep" ]] && continue
+        info "unlocking $dep"
+        mix deps.unlock "$dep" || true
+        mix deps.clean "$dep" || true
+      done <<< "$unused"
+      ok "done. NOTE: also remove these entries from mix.exs manually if still listed."
+      ;;
+    s|S)
+      local picks
+      picks="$(printf '%s\n' "$unused" | fzf --multi --reverse --height=40% \
+                --prompt='unused › ' --header='TAB to mark, ENTER to remove')" || { pause; return; }
+      [[ -z "$picks" ]] && { say "${DIM}nothing selected${RESET}"; pause; return; }
+      while IFS= read -r dep; do
+        [[ -z "$dep" ]] && continue
+        info "unlocking $dep"
+        mix deps.unlock "$dep" || true
+        mix deps.clean "$dep" || true
+      done <<< "$picks"
+      ok "removed selected entries from mix.lock"
+      ;;
+    *) say "${DIM}cancelled${RESET}" ;;
+  esac
+  pause
+}
+
+# ─── database ─────────────────────────────────────────────────────────────────
+action_db_menu() {
+  while true; do
+    local choice
+    choice="$(printf '%s\n' \
+      "status    │ show current database status" \
+      "migrate   │ run pending migrations (mix ecto.migrate)" \
+      "clear     │ drop the database (mix ecto.drop)" \
+      "reset     │ drop + create + migrate (mix ecto.reset)" \
+      "back      │ ← return to main menu" \
+      | fzf --ansi --reverse --height=40% --prompt='db › ' \
+            --header='select a database action' --no-info)" || return
+    local action="${choice%% *}"
+    case "$action" in
+      status)  action_db_status ;;
+      migrate) banner "Migrate"; mix ecto.migrate; pause ;;
+      clear)   banner "Clear database"
+               warn "this will DROP the database"
+               confirm "are you sure?" && mix ecto.drop || say "${DIM}cancelled${RESET}"
+               pause ;;
+      reset)   banner "Reset database"
+               warn "this will DROP, CREATE, and MIGRATE the database"
+               confirm "are you sure?" && mix ecto.reset || say "${DIM}cancelled${RESET}"
+               pause ;;
+      back|"") return ;;
+    esac
+  done
+}
+
+action_db_status() {
+  banner "Database status"
+  info "mix ecto.migrations"
+  mix ecto.migrations 2>&1 | sed 's/^/  /' || true
+  echo
+  info "container status (if any)"
+  compose ps 2>/dev/null | sed 's/^/  /' || true
+  pause
+}
+
+# ─── main menu ────────────────────────────────────────────────────────────────
+build_menu() {
+  # tab-separated: ID \t LABEL \t HELP
+  # printed via fzf with --with-nth=2,3
+  local running_marker stopped_marker port
+  if server_running; then
+    port="$(detect_port)"
+    printf '%s\t%s%s● running%s on :%s  %s↵ controls (o/r/q)%s\t%s\n' \
+      "controls" "$GREEN" "$BOLD" "$RESET" "$port" "$DIM" "$RESET" \
+      "server is up — open browser, restart, tail logs"
+  fi
+  printf '%s\t%s🚀  Start server%s\t%s\n'          "start"    "$BOLD" "$RESET" "run mix phx.server in the background"
+  printf '%s\t%s⛔  Stop server%s\t%s\n'           "stop"     "$BOLD" "$RESET" "stop the running Phoenix server"
+  printf '%s\t%s↻   Restart server%s\t%s\n'        "restart"  "$BOLD" "$RESET" "stop and start again"
+  printf '%s\t%s🧨  Restart dev --fully%s\t%s\n'   "fully"    "$BOLD" "$RESET" "drop db → create → migrate → start server"
+  printf '%s\t%s🐳  Start Docker%s\t%s\n'          "docker"   "$BOLD" "$RESET" "docker compose up -d (postgres etc.)"
+  printf '%s\t%s📦  Dependencies…%s\t%s\n'         "deps"     "$BOLD" "$RESET" "check / install / add / clean unused"
+  printf '%s\t%s🗄   Database…%s\t%s\n'             "db"       "$BOLD" "$RESET" "status / migrate / clear / reset"
+  printf '%s\t%s🚪  Quit%s\t%s\n'                  "quit"     "$DIM"  "$RESET" "exit the TUI"
+}
+
+header_line() {
+  if server_running; then
+    printf '%sRempost dev%s  ·  %s● up%s on :%s' "$BOLD" "$RESET" "$GREEN" "$RESET" "$(detect_port)"
+  else
+    printf '%sRempost dev%s  ·  %s○ stopped%s' "$BOLD" "$RESET" "$DIM" "$RESET"
+  fi
+}
+
+main_menu() {
+  while true; do
+    local choice action
+    choice="$(build_menu | fzf \
+      --ansi \
+      --reverse \
+      --height=80% \
+      --border=rounded \
+      --delimiter=$'\t' \
+      --with-nth=2 \
+      --prompt='› ' \
+      --pointer='▸' \
+      --marker='✓' \
+      --header="$(header_line)
+type to filter · ↑↓ navigate · enter to run · esc to quit" \
+      --preview-window='right,40%,wrap,border-left' \
+      --preview='printf "%s\n\n%s" "{2}" "{3}"' \
+      --no-info)" || return 0
+    action="${choice%%$'\t'*}"
+    case "$action" in
+      controls) action_server_controls ;;
+      start)    action_start_server ;;
+      stop)     action_stop_server ;;
+      restart)  action_restart_server ;;
+      fully)    action_restart_fully ;;
+      docker)   action_docker_up ;;
+      deps)     action_deps_menu ;;
+      db)       action_db_menu ;;
+      quit|"")  return 0 ;;
+    esac
+  done
+}
+
+# ─── entry ────────────────────────────────────────────────────────────────────
+require fzf || { err "install fzf first: https://github.com/junegunn/fzf"; exit 1; }
+require mix || { err "mix not on PATH — install Elixir first"; exit 1; }
+
+main_menu

@@ -5,3 +5,7 @@
 /.fetch
 erl_crash.dump
 *.ez
+
+# bin/dev TUI runtime files
+/tmp/dev_server.pid
+/tmp/dev_server.log

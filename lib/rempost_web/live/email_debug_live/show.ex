@@ -33,6 +33,10 @@ defmodule RempostWeb.EmailDebugLive.Show do
   end
 
   defp assign_email(socket, id) do
-    assign(socket, :email, Rempost.Emails.get_email!(socket.assigns.workspace_id || @workspace_id, id))
+    assign(
+      socket,
+      :email,
+      Rempost.Emails.get_email!(socket.assigns.workspace_id || @workspace_id, id)
+    )
   end
 end

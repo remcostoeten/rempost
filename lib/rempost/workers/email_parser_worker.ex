@@ -5,8 +5,11 @@ defmodule Rempost.Workers.EmailParserWorker do
   alias Rempost.{Repo, Emails, Emails.InboundEmail}
 
   @impl Oban.Worker
-  def perform(%Oban.Job{args: %{"inbound_email_id" => inbound_email_id, "workspace_id" => workspace_id}}) do
-    with %InboundEmail{} = email <- Repo.get_by(InboundEmail, id: inbound_email_id, workspace_id: workspace_id),
+  def perform(%Oban.Job{
+        args: %{"inbound_email_id" => inbound_email_id, "workspace_id" => workspace_id}
+      }) do
+    with %InboundEmail{} = email <-
+           Repo.get_by(InboundEmail, id: inbound_email_id, workspace_id: workspace_id),
          {:ok, %InboundEmail{}} <- mark_processing(email) do
       Emails.broadcast(workspace_id, :email_processing, email.id)
       parsed = Rempost.Parsing.DeterministicParser.parse(email)
@@ -18,7 +21,12 @@ defmodule Rempost.Workers.EmailParserWorker do
     end
   rescue
     error ->
-      Logger.error("Email parser worker failed", error: Exception.message(error), workspace_id: workspace_id, inbound_email_id: inbound_email_id)
+      Logger.error("Email parser worker failed",
+        error: Exception.message(error),
+        workspace_id: workspace_id,
+        inbound_email_id: inbound_email_id
+      )
+
       maybe_mark_failed(workspace_id, inbound_email_id, Exception.message(error))
       Emails.broadcast(workspace_id, :email_failed, inbound_email_id)
       {:error, Exception.message(error)}
@@ -32,8 +40,11 @@ defmodule Rempost.Workers.EmailParserWorker do
 
   defp maybe_mark_failed(workspace_id, inbound_email_id, message) do
     case Repo.get_by(InboundEmail, id: inbound_email_id, workspace_id: workspace_id) do
-      nil -> :ok
-      email -> email |> InboundEmail.changeset(%{status: :failed, parse_error: message}) |> Repo.update()
+      nil ->
+        :ok
+
+      email ->
+        email |> InboundEmail.changeset(%{status: :failed, parse_error: message}) |> Repo.update()
     end
   end
 end

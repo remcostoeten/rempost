@@ -20,7 +20,14 @@ defmodule RempostWeb.DashboardLive.Index do
     {:noreply, socket |> assign(search: term) |> load_emails()}
   end
 
-  def handle_info({event, _id}, socket) when event in [:email_ingested, :email_processing, :email_parsed, :email_failed, :email_retry_queued] do
+  def handle_info({event, _id}, socket)
+      when event in [
+             :email_ingested,
+             :email_processing,
+             :email_parsed,
+             :email_failed,
+             :email_retry_queued
+           ] do
     {:noreply, load_emails(socket)}
   end
 

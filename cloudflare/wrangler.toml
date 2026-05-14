@@ -1,0 +1,22 @@
+name = "rempost-email-worker"
+main = "email-worker.mjs"
+compatibility_date = "2026-05-13"
+
+# Production — npx wrangler deploy
+[vars]
+REMPOST_INBOUND_URL = "https://REPLACE_WITH_PROD_DOMAIN/api/inbound/email"
+
+[[send_email]]
+name = "inbound"
+destination_address = "xxl@remcostoeten.nl"
+
+# Dev — npx wrangler deploy --env dev
+[env.dev]
+name = "rempost-email-worker-dev"
+
+[env.dev.vars]
+REMPOST_INBOUND_URL = "https://cadillac-jay-cruises-grades.trycloudflare.com/api/inbound/email"
+
+[[env.dev.send_email]]
+name = "inbound"
+destination_address = "trash-email-a@remcostoeten.nl"

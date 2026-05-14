@@ -50,6 +50,40 @@ mix ecto.setup
 mix phx.server
 ```
 
+### `bin/dev` — interactive TUI
+
+A small fuzzy-searchable wrapper around the most common `mix` and Docker
+commands. Run it from anywhere inside the repo:
+
+```bash
+./bin/dev
+```
+
+Requires `bash`, [`fzf`](https://github.com/junegunn/fzf), and `mix`. Optional:
+`docker` / `docker compose`, `xdg-open` (Linux) or `open` (macOS) for opening
+URLs.
+
+Inside the menu:
+
+- type any keyword to fuzzy-filter actions
+- `↑` / `↓` to navigate, `Enter` to run, `Esc` to quit
+- the header shows whether the Phoenix server is up and on which port
+
+Available actions:
+
+| action                     | what it does                                                                 |
+| -------------------------- | ---------------------------------------------------------------------------- |
+| **Start server**           | runs `mix phx.server` in the background (logs in `tmp/dev_server.log`)       |
+| **Stop server**            | stops the background Phoenix server                                          |
+| **Restart server**         | stop + start                                                                 |
+| **Restart dev --fully**    | `ecto.drop` → `ecto.create` → `ecto.migrate` → start server (asks first)     |
+| **Server controls** *      | shown when the server is up: `o` open browser · `r` restart · `l` tail logs · `q` back |
+| **Start Docker**           | `docker compose up -d` (falls back to `docker-compose`)                      |
+| **Dependencies…**          | check outdated · install · add new · detect & remove unused                  |
+| **Database…**              | status · migrate · clear · reset                                             |
+
+Destructive actions (drop/reset, removing deps) always prompt for confirmation.
+
 
 ## Cloudflare Email Worker setup
 

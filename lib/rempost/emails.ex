@@ -7,7 +7,8 @@ defmodule Rempost.Emails do
 
   def subscribe(workspace_id), do: Phoenix.PubSub.subscribe(Rempost.PubSub, topic(workspace_id))
 
-  def broadcast(workspace_id, event, payload), do: Phoenix.PubSub.broadcast(Rempost.PubSub, topic(workspace_id), {event, payload})
+  def broadcast(workspace_id, event, payload),
+    do: Phoenix.PubSub.broadcast(Rempost.PubSub, topic(workspace_id), {event, payload})
 
   def ingest_email(attrs) do
     Repo.transaction(fn ->
@@ -33,7 +34,8 @@ defmodule Rempost.Emails do
     end)
   end
 
-  def get_email!(workspace_id, id), do: Repo.get_by!(InboundEmail, id: id, workspace_id: workspace_id)
+  def get_email!(workspace_id, id),
+    do: Repo.get_by!(InboundEmail, id: id, workspace_id: workspace_id)
 
   def list_recent(workspace_id), do: search_recent(workspace_id, nil, 100)
 
@@ -62,14 +64,15 @@ defmodule Rempost.Emails do
     )
   end
 
-
-  def purge_old_raw_emails(workspace_id, retention_days) when is_integer(retention_days) and retention_days > 0 do
+  def purge_old_raw_emails(workspace_id, retention_days)
+      when is_integer(retention_days) and retention_days > 0 do
     cutoff = DateTime.utc_now() |> DateTime.add(-retention_days * 86_400, :second)
 
     InboundEmail
     |> where([e], e.workspace_id == ^workspace_id and e.inserted_at < ^cutoff)
     |> Repo.update_all(set: [raw_text: "", raw_html: nil, raw_headers: %{}])
   end
+
   def stats(workspace_id) do
     base =
       InboundEmail
@@ -96,7 +99,11 @@ defmodule Rempost.Emails do
   defp upsert_or_get_email(attrs) do
     changeset = InboundEmail.changeset(%InboundEmail{}, attrs)
 
-    case Repo.insert(changeset, on_conflict: :nothing, conflict_target: [:workspace_id, :message_id], returning: true) do
+    case Repo.insert(changeset,
+           on_conflict: :nothing,
+           conflict_target: [:workspace_id, :message_id],
+           returning: true
+         ) do
       {:ok, %InboundEmail{id: nil}} -> fetch_existing(attrs)
       {:ok, %InboundEmail{} = email} -> {:ok, email}
       {:error, reason} -> {:error, reason}
