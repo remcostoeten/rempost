@@ -30,7 +30,6 @@ defmodule RempostWeb.Router do
     live "/portal", ShipmentLive.Index, :index
     live "/shipments", ShipmentLive.Index, :index
     live "/shipments/:id", ShipmentLive.Show, :show
-    post "/portal/verify", PortalAccessController, :create
   end
 
   scope "/", RempostWeb do

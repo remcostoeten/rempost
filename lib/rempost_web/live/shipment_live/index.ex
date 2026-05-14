@@ -249,8 +249,7 @@ defmodule RempostWeb.ShipmentLive.Index do
   defp initial_step(%{"step" => "verify"}, _name, _verified?, _master?), do: :verify
   defp initial_step(_params, _name, _verified?, true), do: :results
   defp initial_step(_params, "", _verified?, _master?), do: :identify
-  defp initial_step(_params, _name, true, _master?), do: :verify
-  defp initial_step(_params, _name, false, _master?), do: :verify
+  defp initial_step(_params, _name, _verified?, _master?), do: :verify
 
   defp portal_url(params), do: ~p"/portal?#{params}"
 
