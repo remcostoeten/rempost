@@ -225,6 +225,62 @@ defmodule Rempost.ShipmentsTest do
     end
   end
 
+  describe "lookup_by_recipient/1" do
+    test "returns shipments whose order customer_name matches exactly (case and accent insensitive)" do
+      iduna =
+        insert_order!("ORD-L-1", "XXL Nutrition", %{customer_name: "Iduna Bink"})
+
+      shipment = insert_shipment!(iduna, "JVGL00000000000000L001", "dhl", :in_transit)
+
+      other =
+        insert_order!("ORD-L-2", "XXL Nutrition", %{customer_name: "Jane van Dijk"})
+
+      insert_shipment!(other, "JVGL00000000000000L002", "dhl", :in_transit)
+
+      assert [match] = Shipments.lookup_by_recipient("iduna bink")
+      assert match.id == shipment.id
+
+      assert [match] = Shipments.lookup_by_recipient("IDUNA BINK")
+      assert match.id == shipment.id
+    end
+
+    test "folds accents on both sides" do
+      order = insert_order!("ORD-L-3", "XXL Nutrition", %{customer_name: "José Martínez"})
+      shipment = insert_shipment!(order, "JVGL00000000000000L003", "dhl", :in_transit)
+
+      assert [match] = Shipments.lookup_by_recipient("jose martinez")
+      assert match.id == shipment.id
+    end
+
+    test "returns [] for an unknown name" do
+      order = insert_order!("ORD-L-4", "XXL Nutrition", %{customer_name: "Iduna Bink"})
+      insert_shipment!(order, "JVGL00000000000000L004", "dhl", :in_transit)
+
+      assert [] = Shipments.lookup_by_recipient("nobody")
+      assert [] = Shipments.lookup_by_recipient("")
+      assert [] = Shipments.lookup_by_recipient(nil)
+    end
+
+    test "returns all shipments for a recipient with multiple orders" do
+      order_a = insert_order!("ORD-L-5", "XXL Nutrition", %{customer_name: "Tom Bakker"})
+      shipment_a = insert_shipment!(order_a, "JVGL00000000000000L005", "dhl", :in_transit)
+
+      order_b = insert_order!("ORD-L-6", "XXL Nutrition", %{customer_name: "Tom Bakker"})
+      shipment_b = insert_shipment!(order_b, "JVGL00000000000000L006", "dhl", :shipped)
+
+      ids = Shipments.lookup_by_recipient("tom bakker") |> Enum.map(& &1.id) |> Enum.sort()
+      assert ids == Enum.sort([shipment_a.id, shipment_b.id])
+    end
+
+    test "preloads the order" do
+      order = insert_order!("ORD-L-7", "XXL Nutrition", %{customer_name: "Anna van Dijk"})
+      insert_shipment!(order, "JVGL00000000000000L007", "dhl", :in_transit)
+
+      [match] = Shipments.lookup_by_recipient("anna van dijk")
+      assert %Rempost.Orders.Order{order_number: "ORD-L-7"} = match.order
+    end
+  end
+
   defp insert_order!(order_number, merchant_name) do
     insert_order!(order_number, merchant_name, %{})
   end

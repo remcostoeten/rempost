@@ -55,6 +55,28 @@ defmodule Rempost.Shipments do
     end
   end
 
+  def lookup_by_recipient(name) when is_binary(name) do
+    trimmed = String.trim(name)
+
+    if trimmed == "" do
+      []
+    else
+      folded = String.downcase(trimmed)
+
+      Shipment
+      |> join(:inner, [s], o in assoc(s, :order))
+      |> where(
+        [_s, o],
+        fragment("unaccent(lower(?)) = unaccent(?)", o.customer_name, ^folded)
+      )
+      |> order_by([s], desc: s.updated_at)
+      |> preload([_s, o], order: o)
+      |> Repo.all()
+    end
+  end
+
+  def lookup_by_recipient(_), do: []
+
   def search_shipments(query, limit \\ 100) do
     Shipment
     |> join(:left, [s], o in assoc(s, :order))
