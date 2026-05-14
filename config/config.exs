@@ -41,7 +41,8 @@ config :esbuild,
 config :tailwind,
   version: "3.4.3",
   rempost: [
-    args: ~w(--input=assets/css/app.css --output=priv/static/assets/app.css),
+    args:
+      ~w(--config=assets/tailwind.config.js --input=assets/css/app.css --output=priv/static/assets/app.css),
     cd: Path.expand("..", __DIR__)
   ]
 
