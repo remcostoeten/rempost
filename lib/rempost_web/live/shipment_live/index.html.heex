@@ -1,107 +1,138 @@
-<section class="space-y-6">
-  <div class="rounded-xl border border-zinc-200 bg-white p-5">
-    <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-      <div>
-        <p class="text-xs font-semibold uppercase tracking-wide text-zinc-500">Order lookup</p>
-        <h1 class="text-2xl font-semibold tracking-tight">Find your shipment</h1>
-        <p class="mt-1 text-sm text-zinc-500">
-          Search by order, shop, carrier, or status. Tracking links stay hidden until you answer the security question.
+<section class="mx-auto flex min-h-[calc(100vh-9rem)] max-w-5xl flex-col justify-center px-4 py-10 sm:px-6">
+  <div class="grid gap-10 lg:grid-cols-[minmax(0,0.9fr)_minmax(360px,1fr)] lg:items-center">
+    <div class="space-y-5">
+      <p class="text-sm font-medium text-zinc-500">Hi,</p>
+      <div class="space-y-3">
+        <h1 class="max-w-xl text-4xl font-semibold leading-[1.08] text-zinc-950 sm:text-5xl">
+          Dus, weer op zoek naar je pakketje?
+        </h1>
+        <p class="max-w-md text-base leading-7 text-zinc-600">
+          Vul eerst de naam van je bestelling in. Daarna controleren we kort of jij de tracking mag zien.
         </p>
       </div>
-
-      <form phx-change="search" class="w-full lg:w-96">
-        <input
-          type="text"
-          name="q"
-          value={@q}
-          phx-debounce="300"
-          placeholder="Search order, shop, carrier, status"
-          class="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
-        />
-      </form>
     </div>
-  </div>
 
-  <%= unless @verified? do %>
-    <div class="rounded-xl border border-amber-200 bg-amber-50 p-5">
-      <h2 class="font-semibold text-amber-950">Tracking is hidden</h2>
-      <p class="mt-1 text-sm text-amber-900">
-        Answer the security question to reveal tracking numbers and carrier links. This unlocks tracking for the rest of your visit.
-      </p>
+    <div class="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-6">
+      <%= if @step == :identify do %>
+        <.form for={%{}} phx-submit="identify" as={:lookup} class="space-y-5">
+          <div class="space-y-2">
+            <label for="lookup_name" class="block text-sm font-medium text-zinc-950">
+              Wat is de naam waarop je besteld hebt
+            </label>
+            <input
+              id="lookup_name"
+              type="text"
+              name="lookup[name]"
+              value={@lookup_name}
+              autocomplete="name"
+              autofocus
+              placeholder="Bijvoorbeeld Remco Stoeten"
+              class="h-11 w-full rounded-md border border-zinc-300 bg-white px-3 text-base text-zinc-950 outline-none transition focus:border-zinc-950 focus:ring-2 focus:ring-zinc-950/10"
+            />
+          </div>
 
-      <.form for={%{}} action={~p"/portal/verify"} method="post" class="mt-4 flex flex-col gap-2 sm:flex-row">
-        <input type="hidden" name="return_to" value={~p"/portal"} />
-        <input
-          type="password"
-          name="answer"
-          placeholder="Your answer"
-          aria-label="Security answer"
-          class="rounded-md border border-amber-300 px-3 py-2 text-sm sm:w-80"
-        />
-        <button class="rounded-md bg-amber-950 px-4 py-2 text-sm font-medium text-white">
-          Reveal tracking
-        </button>
-      </.form>
+          <button class="inline-flex h-10 w-full items-center justify-center rounded-md bg-zinc-950 px-4 text-sm font-semibold text-white transition hover:bg-zinc-800 sm:w-auto">
+            Volgende
+          </button>
+        </.form>
+      <% end %>
 
-      <%= if @verification_error do %>
-        <p class="mt-2 text-sm text-red-700"><%= @verification_error %></p>
+      <%= if @step == :verify do %>
+        <div class="space-y-5">
+          <button
+            type="button"
+            phx-click="edit_lookup"
+            class="text-sm font-medium text-zinc-500 transition hover:text-zinc-950"
+          >
+            <%= @lookup_name %>
+          </button>
+
+          <.form for={%{}} action={~p"/portal/verify"} method="post" class="space-y-5">
+            <input type="hidden" name="return_to" value={portal_return_to(@q)} />
+            <div class="space-y-2">
+              <label for="portal_answer" class="block text-sm font-medium text-zinc-950">
+                Je postcode is xx?
+              </label>
+              <p class="text-sm text-zinc-500">Of je woont op nummer</p>
+              <input
+                id="portal_answer"
+                type="password"
+                name="answer"
+                autocomplete="one-time-code"
+                placeholder="Vul je antwoord in"
+                aria-label="Postcode of huisnummer"
+                class="h-11 w-full rounded-md border border-zinc-300 bg-white px-3 text-base text-zinc-950 outline-none transition focus:border-zinc-950 focus:ring-2 focus:ring-zinc-950/10"
+              />
+            </div>
+
+            <button class="inline-flex h-10 w-full items-center justify-center rounded-md bg-zinc-950 px-4 text-sm font-semibold text-white transition hover:bg-zinc-800 sm:w-auto">
+              Bekijk pakketjes
+            </button>
+          </.form>
+
+          <%= if @verification_error do %>
+            <p class="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              <%= @verification_error %>
+            </p>
+          <% end %>
+        </div>
+      <% end %>
+
+      <%= if @step == :results do %>
+        <div class="space-y-5">
+          <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p class="text-sm font-medium text-zinc-500">Ok, ik heb dit voor je:</p>
+              <h2 class="mt-1 text-2xl font-semibold text-zinc-950">Mails</h2>
+            </div>
+
+            <form phx-change="search" class="sm:w-64">
+              <input
+                type="text"
+                name="q"
+                value={@q}
+                phx-debounce="300"
+                placeholder="Zoek opnieuw"
+                class="h-10 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm text-zinc-950 outline-none transition focus:border-zinc-950 focus:ring-2 focus:ring-zinc-950/10"
+              />
+            </form>
+          </div>
+
+          <div class="divide-y divide-zinc-100 rounded-lg border border-zinc-200">
+            <%= if @shipments == [] do %>
+              <div class="px-4 py-8 text-center text-sm text-zinc-500">
+                <%= if @q == "", do: "Nog geen pakketjes gevonden.", else: "Geen mails gevonden voor deze zoekopdracht." %>
+              </div>
+            <% end %>
+
+            <%= for shipment <- @shipments do %>
+              <.link
+                navigate={~p"/shipments/#{shipment.id}"}
+                class="block px-4 py-4 transition hover:bg-zinc-50"
+              >
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div class="min-w-0">
+                    <p class="truncate text-sm font-semibold text-zinc-950">
+                      <%= shipment.order && shipment.order.merchant_name || "Onbekende afzender" %>
+                    </p>
+                    <p class="mt-1 text-sm text-zinc-500">
+                      Order <%= shipment.order && shipment.order.order_number || "onbekend" %>
+                    </p>
+                  </div>
+                  <div class="flex shrink-0 items-center gap-2">
+                    <span class="rounded-md bg-zinc-100 px-2 py-1 text-xs font-medium text-zinc-700">
+                      <%= shipment.status %>
+                    </span>
+                    <span class="font-mono text-xs text-zinc-500">
+                      <%= shipment.carrier || "carrier" %>
+                    </span>
+                  </div>
+                </div>
+              </.link>
+            <% end %>
+          </div>
+        </div>
       <% end %>
     </div>
-  <% end %>
-
-  <div class="overflow-x-auto rounded-xl border border-zinc-200 bg-white">
-    <table class="min-w-full text-sm">
-      <thead class="bg-zinc-50 text-zinc-600">
-        <tr>
-          <th class="px-3 py-2 text-left">Order</th>
-          <th class="px-3 py-2 text-left">Shop</th>
-          <th class="px-3 py-2 text-left">Carrier</th>
-          <th class="px-3 py-2 text-left">Status</th>
-          <th class="px-3 py-2 text-left">Track and trace</th>
-        </tr>
-      </thead>
-      <tbody>
-        <%= if @shipments == [] do %>
-          <tr class="border-t border-zinc-100">
-            <td class="px-3 py-6 text-center text-zinc-500" colspan="5">
-              <%= if @q == "", do: "No shipments yet. New ones appear here as emails are processed.", else: "No shipments match that search." %>
-            </td>
-          </tr>
-        <% end %>
-
-        <%= for shipment <- @shipments do %>
-          <tr class="border-t border-zinc-100 align-top">
-            <td class="px-3 py-2 font-medium text-zinc-900">
-              <%= shipment.order && shipment.order.order_number %>
-            </td>
-            <td class="px-3 py-2 text-zinc-600">
-              <%= shipment.order && shipment.order.merchant_name %>
-            </td>
-            <td class="px-3 py-2"><%= shipment.carrier %></td>
-            <td class="px-3 py-2">
-              <span class="inline-flex rounded-md bg-zinc-100 px-2 py-1 text-xs font-medium text-zinc-700">
-                <%= shipment.status %>
-              </span>
-            </td>
-            <td class="px-3 py-2">
-              <%= if @verified? do %>
-                <div class="space-y-1">
-                  <.link navigate={~p"/shipments/#{shipment.id}"} class="font-medium text-blue-700 hover:underline">
-                    <%= shipment.tracking_number %>
-                  </.link>
-                  <%= if shipment.tracking_url do %>
-                    <a href={shipment.tracking_url} target="_blank" rel="noreferrer" class="block text-xs text-blue-700 hover:underline">
-                      Open carrier tracking
-                    </a>
-                  <% end %>
-                </div>
-              <% else %>
-                <span class="font-mono text-xs text-zinc-500">**** <%= String.slice(shipment.tracking_number, -4, 4) %></span>
-              <% end %>
-            </td>
-          </tr>
-        <% end %>
-      </tbody>
-    </table>
   </div>
 </section>

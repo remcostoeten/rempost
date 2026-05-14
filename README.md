@@ -104,6 +104,45 @@ mix ecto.setup
 mix phx.server
 ```
 
+## Hotmail XXL backfill for testing
+
+Use `scripts/import-hotmail-xxl.mjs` to import historical XXL emails from a
+Hotmail/Outlook mailbox into the normal Rempost ingestion pipeline. It uses
+Microsoft Graph and posts each matching email to `POST /api/inbound/email`, so
+raw email persistence and Oban parsing still run exactly like live ingestion.
+
+Create a Microsoft Entra app registration for a public client, allow personal
+Microsoft accounts if this is a Hotmail account, and grant delegated `Mail.Read`.
+Then run a dry-run first:
+
+```bash
+MICROSOFT_CLIENT_ID="<app-client-id>" \
+node scripts/import-hotmail-xxl.mjs
+```
+
+To actually queue the matching emails into local Rempost:
+
+```bash
+MICROSOFT_CLIENT_ID="<app-client-id>" \
+HOTMAIL_IMPORT_DRY_RUN=0 \
+node scripts/import-hotmail-xxl.mjs
+```
+
+Useful options:
+
+| variable | default | purpose |
+| --- | --- | --- |
+| `MICROSOFT_TENANT` | `consumers` | use `common` for work/school plus personal accounts |
+| `HOTMAIL_IMPORT_QUERY` | `XXL Nutrition` | Microsoft Graph mailbox search query |
+| `HOTMAIL_IMPORT_ALLOWED_FROM` | `info@xxlnutrition.com,noreply@dhlecommerce.nl,no-reply@sendcloud.com` | comma-separated sender allowlist; set empty to import every search hit |
+| `HOTMAIL_IMPORT_MAX` | `100` | maximum messages to import |
+| `HOTMAIL_IMPORT_DRY_RUN` | enabled | set to `0` to write into Rempost |
+| `REMPOST_BASE_URL` | `http://127.0.0.1:4000` | target Rempost app |
+| `REMPOST_INBOUND_TOKEN` | local dev token on localhost | inbound API token |
+
+The Microsoft refresh token is cached at `tmp/hotmail-import-token.json` and is
+ignored by git.
+
 ### `bin/dev` — interactive TUI
 
 A small fuzzy-searchable wrapper around the most common `mix` and Docker
