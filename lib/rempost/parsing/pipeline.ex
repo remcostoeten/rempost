@@ -12,10 +12,10 @@ defmodule Rempost.Parsing.Pipeline do
     Repo.transaction(fn ->
       order = upsert_order!(email, parsed)
       shipment = upsert_shipment!(order, parsed)
-      create_tracking_event!(shipment, parsed)
+      if shipment, do: create_tracking_event!(shipment, parsed)
       email |> InboundEmail.changeset(%{status: :parsed, parse_error: nil}) |> Repo.update!()
-      Shipments.broadcast(:shipment_updated, shipment.id)
-      shipment
+      if shipment, do: Shipments.broadcast(:shipment_updated, shipment.id)
+      %{order: order, shipment: shipment}
     end)
   end
 
@@ -36,10 +36,15 @@ defmodule Rempost.Parsing.Pipeline do
   end
 
   defp upsert_shipment!(order, parsed) do
+    if is_nil(parsed.tracking_number), do: nil, else: do_upsert_shipment!(order, parsed)
+  end
+
+  defp do_upsert_shipment!(order, parsed) do
     attrs = %{
       order_id: order.id,
       carrier: parsed.carrier,
-      tracking_number: parsed.tracking_number || "pending-#{order.id}",
+      tracking_number: parsed.tracking_number,
+      tracking_url: parsed.tracking_url,
       status: parsed.status,
       last_event_at: DateTime.utc_now()
     }
@@ -51,6 +56,7 @@ defmodule Rempost.Parsing.Pipeline do
         set: [
           status: attrs.status,
           carrier: attrs.carrier,
+          tracking_url: attrs.tracking_url,
           last_event_at: attrs.last_event_at,
           updated_at: DateTime.utc_now()
         ]

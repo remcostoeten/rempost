@@ -17,13 +17,15 @@ defmodule Rempost.Parsing.DeterministicParserTest do
     parsed =
       email(%{
         subject: "DHL Shipment update for order #ab-123",
-        raw_text: "Your package is in transit. Tracking number: 123456789012"
+        raw_text:
+          "Your package is in transit. Tracking number: 123456789012 https://www.dhl.com/track/123456789012"
       })
       |> DeterministicParser.parse()
 
     assert parsed.carrier == "dhl"
     assert parsed.order_number == "AB-123"
     assert parsed.tracking_number == "123456789012"
+    assert parsed.tracking_url == "https://www.dhl.com/track/123456789012"
     assert parsed.status == :in_transit
   end
 
@@ -39,6 +41,44 @@ defmodule Rempost.Parsing.DeterministicParserTest do
     assert parsed.status == :delivered
   end
 
+  test "extracts dutch order confirmation data" do
+    parsed =
+      email(%{
+        subject: "Je bestelling is klaar voor verzending",
+        raw_text: "Je order 5234424 is onderweg en wordt bezorgd door DHL eCommerce Benelux."
+      })
+      |> DeterministicParser.parse()
+
+    assert parsed.carrier == "dhl"
+    assert parsed.order_number == "5234424"
+    assert parsed.status == :in_transit
+  end
+
+  test "extracts dutch delivered tracking data" do
+    parsed =
+      email(%{
+        subject: "Je pakket is bezorgd (JVGL06178784002102090726)",
+        raw_text: "Je pakket JVGL06178784002102090726 is bezorgd."
+      })
+      |> DeterministicParser.parse()
+
+    assert parsed.carrier == "dhl"
+    assert parsed.tracking_number == "JVGL06178784002102090726"
+    assert parsed.status == :delivered
+  end
+
+  test "extracts dutch PostNL transit status" do
+    parsed =
+      email(%{
+        subject: "PostNL is onderweg",
+        raw_text: "Je bestelling is onderweg en komt binnenkort aan."
+      })
+      |> DeterministicParser.parse()
+
+    assert parsed.carrier == "unknown"
+    assert parsed.status == :in_transit
+  end
+
   test "falls back to unknown carrier and ordered status" do
     parsed =
       email(%{
@@ -49,6 +89,7 @@ defmodule Rempost.Parsing.DeterministicParserTest do
 
     assert parsed.carrier == "unknown"
     assert parsed.tracking_number == nil
+    assert parsed.tracking_url == nil
     assert parsed.order_number == nil
     assert parsed.status == :ordered
   end

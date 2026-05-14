@@ -15,3 +15,6 @@ erl_crash.dump
 /tmp/email_tunnel_*.log
 /tmp/email_tunnel.env
 /cloudflare/.wrangler.email-tunnel.toml
+
+# .EML extractions from actual hotmail
+/example-mails/
