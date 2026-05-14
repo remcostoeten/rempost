@@ -1,12 +1,13 @@
 import Config
 
-config :rempost,
-       :inbound_token,
-       System.get_env("REMPOST_INBOUND_TOKEN") ||
-         "324b10a95e4a7ed7fcf82ca30b4986ee40200cb36b4dab70f0fb3fc9679bd1c2"
-
 if config_env() == :prod do
   database_url = System.fetch_env!("DATABASE_URL")
+
+  config :rempost,
+    inbound_token: System.fetch_env!("REMPOST_INBOUND_TOKEN"),
+    admin_username: System.fetch_env!("REMPOST_ADMIN_USER"),
+    admin_password: System.fetch_env!("REMPOST_ADMIN_PASSWORD"),
+    portal_access_answer: System.get_env("REMPOST_PORTAL_ACCESS_ANSWER")
 
   config :rempost, Rempost.Repo,
     url: database_url,

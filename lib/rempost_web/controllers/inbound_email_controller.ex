@@ -5,33 +5,28 @@ defmodule RempostWeb.InboundEmailController do
   @required_fields ~w(message_id from_email raw_text)a
 
   def index(conn, params) do
-    with :ok <- authorize(conn, params) do
-      q = params["q"]
-      limit = parse_limit(params["limit"])
+    q = params["q"]
+    limit = parse_limit(params["limit"])
 
-      emails =
-        Rempost.Emails.search_recent(q, limit)
-        |> Enum.map(fn email ->
-          %{
-            id: email.id,
-            message_id: email.message_id,
-            from_email: email.from_email,
-            subject: email.subject,
-            status: email.status,
-            received_at: email.received_at,
-            inserted_at: email.inserted_at
-          }
-        end)
+    emails =
+      Rempost.Emails.search_recent(q, limit)
+      |> Enum.map(fn email ->
+        %{
+          id: email.id,
+          message_id: email.message_id,
+          from_email: email.from_email,
+          subject: email.subject,
+          status: email.status,
+          received_at: email.received_at,
+          inserted_at: email.inserted_at
+        }
+      end)
 
-      json(conn, %{
-        count: length(emails),
-        limit: limit,
-        emails: emails
-      })
-    else
-      {:error, :unauthorized} ->
-        json(conn |> put_status(:unauthorized), %{error: "unauthorized"})
-    end
+    json(conn, %{
+      count: length(emails),
+      limit: limit,
+      emails: emails
+    })
   end
 
   def create(conn, params) do

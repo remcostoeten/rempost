@@ -1,7 +1,6 @@
 defmodule RempostWeb.Router do
   use RempostWeb, :router
   import Oban.Web.Router
-  import Plug.BasicAuth
 
   pipeline :browser do
     plug :accepts, ["html"]
@@ -16,30 +15,42 @@ defmodule RempostWeb.Router do
     plug :accepts, ["json"]
   end
 
-  pipeline :oban_admin do
-    plug :basic_auth,
-      username: System.get_env("OBAN_DASHBOARD_USER") || "admin",
-      password: System.get_env("OBAN_DASHBOARD_PASS") || "admin"
+  pipeline :admin do
+    plug RempostWeb.Plugs.AdminAuth
+  end
+
+  pipeline :admin_api do
+    plug :accepts, ["json"]
+    plug RempostWeb.Plugs.AdminAuth
   end
 
   scope "/", RempostWeb do
     pipe_through :browser
     live "/", ShipmentLive.Index, :index
-    live "/dashboard", DashboardLive.Index, :index
     live "/portal", ShipmentLive.Index, :index
     live "/shipments", ShipmentLive.Index, :index
     live "/shipments/:id", ShipmentLive.Show, :show
+    post "/portal/verify", PortalAccessController, :create
+  end
+
+  scope "/", RempostWeb do
+    pipe_through [:browser, :admin]
+    live "/dashboard", DashboardLive.Index, :index
     live "/emails/:id", EmailDebugLive.Show, :show
   end
 
   scope "/api", RempostWeb do
     pipe_through :api
     post "/inbound/email", InboundEmailController, :create
+  end
+
+  scope "/api", RempostWeb do
+    pipe_through :admin_api
     get "/inbound/emails", InboundEmailController, :index
   end
 
   scope "/oban" do
-    pipe_through [:browser, :oban_admin]
+    pipe_through [:browser, :admin]
     oban_dashboard("/")
   end
 end

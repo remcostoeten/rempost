@@ -4,10 +4,6 @@ config :rempost,
   ecto_repos: [Rempost.Repo],
   generators: [timestamp_type: :utc_datetime]
 
-config :rempost,
-       :inbound_token,
-       "324b10a95e4a7ed7fcf82ca30b4986ee40200cb36b4dab70f0fb3fc9679bd1c2"
-
 config :rempost, Rempost.Repo, migration_timestamps: [type: :utc_datetime]
 
 config :rempost, Oban,

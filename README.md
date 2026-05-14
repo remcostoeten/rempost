@@ -1,15 +1,17 @@
 # Rempost
 
-Rempost is an operational inbox intelligence app for ecommerce logistics emails.
+Rempost is a self-service shipment lookup backed by an operational ecommerce
+email ingestion pipeline.
 
 ## Current focus
 
 MVP focus is intentionally narrow:
 
-1. ingest forwarded emails (Cloudflare email pipeline)
-2. store raw email
-3. parse asynchronously
-4. display emails in a searchable dashboard
+1. ingest forwarded emails (Cloudflare Email Routing)
+2. store raw email before parsing
+3. parse asynchronously through Oban
+4. derive orders, shipments, and tracking events
+5. expose public shipment lookup separately from admin debugging surfaces
 
 ## Inbound API
 
@@ -18,7 +20,7 @@ MVP focus is intentionally narrow:
 Authentication:
 - Header: `x-rempost-token: <token>` (recommended)
 - or payload field: `token`
-- token value configured by `config :rempost, :inbound_token`
+- token value configured by `REMPOST_INBOUND_TOKEN`
 
 Accepted payload fields (Cloudflare-friendly aliases supported):
 
@@ -30,17 +32,69 @@ Accepted payload fields (Cloudflare-friendly aliases supported):
 - `received_at` or `date` (ISO8601)
 - `headers`
 
-## Query API
+## Admin Query API
 
 - `GET /api/inbound/emails`
   - optional query params: `q`, `limit` (max 200)
-  - requires same token auth as inbound POST (`x-rempost-token` or `token`)
+  - requires admin Basic Auth
   - returns recent inbound emails for debugging/search integrations
 
-## Dashboard
+## Routes
 
-- `/` or `/dashboard` for searchable inbound email feed
-- `/emails/:id` for raw email debug + retry parsing
+Public:
+
+- `/` and `/portal` for self-service shipment search
+- `/shipments` for the same shipment search surface
+- `/shipments/:id` for shipment timeline/details with tracking data hidden until verification
+- `POST /api/inbound/email` for Cloudflare inbound delivery, protected by inbound token
+
+Admin:
+
+- `/dashboard` for inbound email/search operations
+- `/emails/:id` for raw email debug and parser retry
+- `/oban` for Oban job visibility
+- `GET /api/inbound/emails` for admin email search integrations
+
+Admin surfaces require Basic Auth. Public shipment routes never expose raw email
+content, and full tracking numbers/links are revealed only after the configured
+portal answer is verified for the browser session.
+
+## Environment
+
+Required before sharing outside localhost:
+
+| variable | purpose |
+| --- | --- |
+| `REMPOST_INBOUND_TOKEN` | bearer-style shared token for `POST /api/inbound/email` |
+| `REMPOST_ADMIN_USER` | Basic Auth username for admin routes |
+| `REMPOST_ADMIN_PASSWORD` | Basic Auth password for admin routes |
+| `REMPOST_PORTAL_ACCESS_ANSWER` | shared answer for revealing public tracking details |
+
+Optional:
+
+| variable | default | purpose |
+| --- | --- | --- |
+| `REMPOST_PORTAL_VERIFICATION_TTL_SECONDS` | `3600` | browser-session verification TTL |
+| `DATABASE_URL` | required in prod | Postgres connection URL |
+| `POOL_SIZE` | `10` | Ecto connection pool size |
+
+Production requires inbound/admin secrets at boot. If admin credentials are
+missing at runtime, admin routes fail closed with `503`. If the portal access
+answer is missing, tracking reveal fails closed.
+
+## Local database drift
+
+This app is intentionally single-tenant. The old workspace migration was deleted
+and should not be reintroduced for local drift. If a local development database
+still has the deleted workspace migration recorded or contains obsolete
+workspace tables, reset the local dev database:
+
+```bash
+mix ecto.reset
+```
+
+For production-like data, inspect `schema_migrations` and apply a narrow cleanup
+only after backing up the database.
 
 ## Local development
 

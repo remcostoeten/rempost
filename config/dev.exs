@@ -1,5 +1,11 @@
 import Config
 
+config :rempost,
+  inbound_token: System.get_env("REMPOST_INBOUND_TOKEN") || "dev-inbound-token",
+  admin_username: System.get_env("REMPOST_ADMIN_USER") || "admin",
+  admin_password: System.get_env("REMPOST_ADMIN_PASSWORD") || "admin",
+  portal_access_answer: System.get_env("REMPOST_PORTAL_ACCESS_ANSWER") || "dev-answer"
+
 config :rempost, Rempost.Repo,
   username: "postgres",
   password: "postgres",

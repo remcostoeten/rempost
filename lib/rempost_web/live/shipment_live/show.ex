@@ -1,20 +1,14 @@
 defmodule RempostWeb.ShipmentLive.Show do
   use RempostWeb, :live_view
 
-  def mount(%{"id" => id}, _session, socket),
+  def mount(%{"id" => id}, session, socket),
     do:
       {:ok,
        assign(socket,
          shipment: Rempost.Shipments.get_shipment!(id),
-         verified?: false,
-         verification_error: nil
+         verified?: Rempost.Access.portal_session_verified?(session),
+         verification_error: flash_error(socket.assigns.flash)
        )}
 
-  def handle_event("verify", %{"answer" => answer}, socket) do
-    if Rempost.Access.portal_verified?(answer) do
-      {:noreply, assign(socket, verified?: true, verification_error: nil)}
-    else
-      {:noreply, assign(socket, verification_error: "That answer did not match.")}
-    end
-  end
+  defp flash_error(flash), do: Map.get(flash, "error") || Map.get(flash, :error)
 end

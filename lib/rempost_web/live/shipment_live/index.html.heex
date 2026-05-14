@@ -2,10 +2,10 @@
   <div class="rounded-xl border border-zinc-200 bg-white p-5">
     <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
       <div>
-        <p class="text-xs font-semibold uppercase tracking-wide text-zinc-500">Self-service order lookup</p>
+        <p class="text-xs font-semibold uppercase tracking-wide text-zinc-500">Order lookup</p>
         <h1 class="text-2xl font-semibold tracking-tight">Find your shipment</h1>
         <p class="mt-1 text-sm text-zinc-500">
-          Search ecommerce order and shipment emails. Track-and-trace stays hidden until verification is answered.
+          Search by order, shop, carrier, or status. Tracking links stay hidden until you answer the security question.
         </p>
       </div>
 
@@ -24,22 +24,24 @@
 
   <%= unless @verified? do %>
     <div class="rounded-xl border border-amber-200 bg-amber-50 p-5">
-      <h2 class="font-semibold text-amber-950">Track-and-trace is locked</h2>
+      <h2 class="font-semibold text-amber-950">Tracking is hidden</h2>
       <p class="mt-1 text-sm text-amber-900">
-        Answer the shared security question to reveal tracking numbers and tracking links for this session.
+        Answer the security question to reveal tracking numbers and carrier links. This unlocks tracking for the rest of your visit.
       </p>
 
-      <form phx-submit="verify" class="mt-4 flex flex-col gap-2 sm:flex-row">
+      <.form for={%{}} action={~p"/portal/verify"} method="post" class="mt-4 flex flex-col gap-2 sm:flex-row">
+        <input type="hidden" name="return_to" value={~p"/portal"} />
         <input
           type="password"
           name="answer"
-          placeholder="Security answer"
+          placeholder="Your answer"
+          aria-label="Security answer"
           class="rounded-md border border-amber-300 px-3 py-2 text-sm sm:w-80"
         />
         <button class="rounded-md bg-amber-950 px-4 py-2 text-sm font-medium text-white">
           Reveal tracking
         </button>
-      </form>
+      </.form>
 
       <%= if @verification_error do %>
         <p class="mt-2 text-sm text-red-700"><%= @verification_error %></p>
@@ -62,7 +64,7 @@
         <%= if @shipments == [] do %>
           <tr class="border-t border-zinc-100">
             <td class="px-3 py-6 text-center text-zinc-500" colspan="5">
-              No parsed shipments yet.
+              <%= if @q == "", do: "No shipments yet. New ones appear here as emails are processed.", else: "No shipments match that search." %>
             </td>
           </tr>
         <% end %>

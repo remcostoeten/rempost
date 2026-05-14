@@ -1,5 +1,8 @@
 import Config
 
+config :rempost,
+  inbound_token: "test-inbound-token"
+
 config :rempost, Rempost.Repo,
   username: "postgres",
   password: "postgres",
@@ -10,7 +13,7 @@ config :rempost, Rempost.Repo,
 
 config :rempost, RempostWeb.Endpoint,
   http: [ip: {127, 0, 0, 1}, port: 4002],
-  secret_key_base: "testsecret",
+  secret_key_base: "testsecret_testsecret_testsecret_testsecret_testsecret_testsecret_test",
   server: false
 
 config :logger, level: :warning
