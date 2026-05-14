@@ -26,6 +26,35 @@ defmodule Rempost.Shipments do
     |> Repo.all()
   end
 
+  @suggest_default_limit 8
+
+  def suggest_recipients(query, limit \\ @suggest_default_limit) do
+    trimmed = query |> to_string() |> String.trim()
+
+    if String.length(trimmed) < 2 do
+      []
+    else
+      folded = String.downcase(trimmed)
+
+      Shipment
+      |> join(:inner, [s], o in assoc(s, :order))
+      |> where(
+        [_s, o],
+        fragment("unaccent(lower(?)) LIKE '%' || unaccent(?) || '%'", o.customer_name, ^folded)
+      )
+      |> where([_s, o], not is_nil(o.customer_name) and o.customer_name != "")
+      |> group_by([_s, o], o.customer_name)
+      |> select([s, o], %{
+        name: o.customer_name,
+        shipment_count: count(s.id),
+        latest_activity_at: max(s.updated_at)
+      })
+      |> order_by([s, _o], desc: max(s.updated_at))
+      |> limit(^limit)
+      |> Repo.all()
+    end
+  end
+
   def search_shipments(query, limit \\ 100) do
     Shipment
     |> join(:left, [s], o in assoc(s, :order))

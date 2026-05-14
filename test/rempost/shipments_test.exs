@@ -173,6 +173,58 @@ defmodule Rempost.ShipmentsTest do
     assert match.id == shipment.id
   end
 
+  describe "suggest_recipients/2" do
+    test "returns recipients matching a prefix, case- and accent-insensitive" do
+      anna = insert_order!("ORD-S-1", "XXL Nutrition", %{customer_name: "Anna van Dijk"})
+      insert_shipment!(anna, "JVGL000000000000000001", "dhl", :in_transit)
+
+      jose = insert_order!("ORD-S-2", "XXL Nutrition", %{customer_name: "José Martínez"})
+      insert_shipment!(jose, "JVGL000000000000000002", "dhl", :in_transit)
+
+      assert [%{name: "Anna van Dijk", shipment_count: 1}] =
+               Shipments.suggest_recipients("anna")
+
+      assert [%{name: "José Martínez"}] = Shipments.suggest_recipients("jose")
+    end
+
+    test "matches substrings, not just prefixes" do
+      order = insert_order!("ORD-S-3", "XXL Nutrition", %{customer_name: "Anna van Dijk"})
+      insert_shipment!(order, "JVGL000000000000000003", "dhl", :in_transit)
+
+      assert [%{name: "Anna van Dijk"}] = Shipments.suggest_recipients("dijk")
+    end
+
+    test "returns [] for queries shorter than 2 trimmed characters" do
+      order = insert_order!("ORD-S-4", "XXL Nutrition", %{customer_name: "Anna van Dijk"})
+      insert_shipment!(order, "JVGL000000000000000004", "dhl", :in_transit)
+
+      assert [] = Shipments.suggest_recipients("")
+      assert [] = Shipments.suggest_recipients(" ")
+      assert [] = Shipments.suggest_recipients("a")
+    end
+
+    test "groups by name and counts shipments" do
+      order = insert_order!("ORD-S-5", "XXL Nutrition", %{customer_name: "Tom Bakker"})
+      insert_shipment!(order, "JVGL000000000000000005", "dhl", :in_transit)
+      insert_shipment!(order, "JVGL000000000000000006", "dhl", :shipped)
+
+      assert [%{name: "Tom Bakker", shipment_count: 2}] = Shipments.suggest_recipients("tom")
+    end
+
+    test "honours the limit" do
+      for i <- 1..10 do
+        order =
+          insert_order!("ORD-S-LIM-#{i}", "XXL Nutrition", %{
+            customer_name: "Recipient #{i}"
+          })
+
+        insert_shipment!(order, "JVGL00000000000000LIM#{i}", "dhl", :in_transit)
+      end
+
+      assert length(Shipments.suggest_recipients("recipient", 3)) == 3
+    end
+  end
+
   defp insert_order!(order_number, merchant_name) do
     insert_order!(order_number, merchant_name, %{})
   end
