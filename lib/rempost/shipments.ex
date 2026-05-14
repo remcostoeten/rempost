@@ -15,6 +15,16 @@ defmodule Rempost.Shipments do
     |> Repo.all()
   end
 
+  def search_shipments(query, limit \\ 100) do
+    Shipment
+    |> join(:left, [s], o in assoc(s, :order))
+    |> maybe_search(query)
+    |> order_by([s], desc: s.updated_at)
+    |> limit(^limit)
+    |> preload([_s, o], order: o)
+    |> Repo.all()
+  end
+
   def stats do
     base = Shipment
 
@@ -44,4 +54,21 @@ defmodule Rempost.Shipments do
         tracking_events: ^from(t in TrackingEvent, order_by: [asc: t.occurred_at])
       ])
       |> Repo.one!()
+
+  defp maybe_search(query, nil), do: query
+  defp maybe_search(query, ""), do: query
+
+  defp maybe_search(query, raw_term) do
+    term = "%#{String.downcase(String.trim(raw_term))}%"
+
+    where(
+      query,
+      [s, o],
+      ilike(fragment("lower(?)", s.tracking_number), ^term) or
+        ilike(fragment("lower(?)", s.carrier), ^term) or
+        ilike(fragment("lower(?)", type(s.status, :string)), ^term) or
+        ilike(fragment("lower(?)", o.order_number), ^term) or
+        ilike(fragment("lower(?)", o.merchant_name), ^term)
+    )
+  end
 end

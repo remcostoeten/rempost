@@ -1,4 +1,47 @@
-<h1 class="text-2xl font-semibold">Shipment <%= @shipment.tracking_number %></h1>
-<ol class="mt-6 space-y-3">
-<%= for e <- @shipment.tracking_events do %><li class="rounded-lg border p-3"><p><%= e.status %></p><p class="text-xs text-zinc-500"><%= e.occurred_at %></p></li><% end %>
-</ol>
+<section class="space-y-6">
+  <div class="rounded-xl border border-zinc-200 bg-white p-5">
+    <p class="text-xs font-semibold uppercase tracking-wide text-zinc-500">Shipment</p>
+    <h1 class="text-2xl font-semibold">
+      <%= if @verified?, do: @shipment.tracking_number, else: "Tracking locked" %>
+    </h1>
+    <p class="mt-1 text-sm text-zinc-500">
+      <%= @shipment.order && @shipment.order.order_number %> / <%= @shipment.carrier %> / <%= @shipment.status %>
+    </p>
+  </div>
+
+  <%= unless @verified? do %>
+    <div class="rounded-xl border border-amber-200 bg-amber-50 p-5">
+      <h2 class="font-semibold text-amber-950">Verify before revealing track-and-trace</h2>
+      <form phx-submit="verify" class="mt-4 flex flex-col gap-2 sm:flex-row">
+        <input
+          type="password"
+          name="answer"
+          placeholder="Security answer"
+          class="rounded-md border border-amber-300 px-3 py-2 text-sm sm:w-80"
+        />
+        <button class="rounded-md bg-amber-950 px-4 py-2 text-sm font-medium text-white">
+          Reveal tracking
+        </button>
+      </form>
+
+      <%= if @verification_error do %>
+        <p class="mt-2 text-sm text-red-700"><%= @verification_error %></p>
+      <% end %>
+    </div>
+  <% end %>
+
+  <%= if @verified? && @shipment.tracking_url do %>
+    <a href={@shipment.tracking_url} target="_blank" rel="noreferrer" class="inline-flex rounded-md bg-blue-700 px-4 py-2 text-sm font-medium text-white">
+      Open carrier tracking
+    </a>
+  <% end %>
+
+  <ol class="space-y-3">
+    <%= for event <- @shipment.tracking_events do %>
+      <li class="rounded-lg border border-zinc-200 bg-white p-3">
+        <p class="font-medium"><%= event.status %></p>
+        <p class="text-xs text-zinc-500"><%= event.occurred_at %></p>
+      </li>
+    <% end %>
+  </ol>
+</section>

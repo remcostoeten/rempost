@@ -24,8 +24,9 @@ defmodule RempostWeb.Router do
 
   scope "/", RempostWeb do
     pipe_through :browser
-    live "/", DashboardLive.Index, :index
+    live "/", ShipmentLive.Index, :index
     live "/dashboard", DashboardLive.Index, :index
+    live "/portal", ShipmentLive.Index, :index
     live "/shipments", ShipmentLive.Index, :index
     live "/shipments/:id", ShipmentLive.Show, :show
     live "/emails/:id", EmailDebugLive.Show, :show

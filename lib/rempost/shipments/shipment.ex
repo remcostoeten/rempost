@@ -5,6 +5,7 @@ defmodule Rempost.Shipments.Shipment do
   schema "shipments" do
     field :carrier, :string
     field :tracking_number, :string
+    field :tracking_url, :string
 
     field :status, Ecto.Enum,
       values: [:ordered, :shipped, :in_transit, :delivered, :failed],
@@ -24,6 +25,7 @@ defmodule Rempost.Shipments.Shipment do
         :order_id,
         :carrier,
         :tracking_number,
+        :tracking_url,
         :status,
         :estimated_delivery_at,
         :last_event_at
