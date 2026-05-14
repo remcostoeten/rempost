@@ -39,7 +39,7 @@ defmodule RempostWeb.AdminAuthTest do
   test "keeps portal route public", %{conn: conn} do
     conn = get(conn, ~p"/portal")
 
-    assert html_response(conn, 200) =~ "Hi, zoek je"
+    assert html_response(conn, 200) =~ "Naam op bestelling"
   end
 
   test "protects inbound email search api", %{conn: conn} do
