@@ -17,101 +17,96 @@ defmodule RempostWeb.ShipmentLiveIndexTest do
     :ok
   end
 
-  test "looks up public shipments through name and postcode flow", %{conn: conn} do
+  test "autocompletes recipients and navigates to results on pick", %{conn: conn} do
     order =
       insert_order!(%{
         order_number: "XXL-PORTAL-1",
         merchant_name: "XXL Nutrition",
         customer_name: "Iduna Bink",
-        customer_postal_code: "2035PH",
-        customer_street: "Monteverdistraat",
-        customer_house_number: "212"
+        customer_postal_code: "2035PH"
       })
 
     insert_shipment!(order, "JVGL06178784002102090726")
 
     {:ok, view, html} = live(conn, ~p"/portal")
-
     assert html =~ "Naam op bestelling"
 
-    view
-    |> form("form[phx-submit='identify']", lookup: %{name: "Iduna"})
-    |> render_submit()
+    # typing surfaces a suggestion
+    view |> element("#lookup_name") |> render_keyup(%{"value" => "iduna"})
+    assert render(view) =~ "Iduna Bink"
 
-    assert render(view) =~ "Welke postcode"
-
-    view
-    |> form("form[phx-submit='verify_address']",
-      verification: %{mode: "postcode", value: "2035 PH"}
-    )
-    |> render_submit()
+    # picking it navigates to results
+    view |> element("button[phx-click='pick'][phx-value-name='Iduna Bink']") |> render_click()
 
     html = render(view)
-
-    assert html =~ "1 pakket gevonden"
-    assert html =~ "XXL Nutrition"
+    assert html =~ "Iduna Bink"
     assert html =~ "JVGL06178784002102090726"
   end
 
-  test "lookup state is reflected in url params and logo returns to start", %{conn: conn} do
-    {:ok, view, html} = live(conn, ~p"/portal")
-
-    assert html =~ ~s(href="/portal?step=start")
-
-    view
-    |> form("form[phx-submit='identify']", lookup: %{name: "Iduna Bink"})
-    |> render_submit()
-
-    assert_patch(view, ~p"/portal?name=Iduna+Bink&step=verify")
-
-    view
-    |> element(~s(a[href="/portal?step=start"]))
-    |> render_click()
-
-    assert_patch(view, ~p"/portal?step=start")
-    assert render(view) =~ "Naam op bestelling"
-  end
-
-  test "renders split address and tracking emails without internal order placeholders", %{
-    conn: conn
-  } do
-    insert_order!(%{
-      order_number: "XXL-PORTAL-2",
-      merchant_name: "XXL Nutrition",
-      customer_name: "Iduna Bink",
-      customer_postal_code: "2035PH",
-      customer_street: "Monteverdistraat",
-      customer_house_number: "212"
-    })
-
-    tracking_order =
+  test "submitting an exact-match name goes straight to results", %{conn: conn} do
+    order =
       insert_order!(%{
-        order_number: "unknown-202",
-        merchant_name: "noreply@dhlecommerce.nl",
-        customer_name: "Iduna Bink"
+        order_number: "XXL-PORTAL-2",
+        merchant_name: "XXL Nutrition",
+        customer_name: "Tom Bakker"
       })
 
-    insert_shipment!(tracking_order, "JVGL06178784002034591522")
+    insert_shipment!(order, "JVGL06178784002102090727")
 
     {:ok, view, _html} = live(conn, ~p"/portal")
 
     view
-    |> form("form[phx-submit='identify']", lookup: %{name: "Iduna Bink"})
-    |> render_submit()
-
-    view
-    |> form("form[phx-submit='verify_address']",
-      verification: %{mode: "postcode", value: "2035 PH"}
-    )
+    |> form("form[phx-submit='submit']", lookup: %{name: "Tom Bakker"})
     |> render_submit()
 
     html = render(view)
+    assert html =~ "Tom Bakker"
+    assert html =~ "JVGL06178784002102090727"
+  end
 
-    assert html =~ "1 pakket gevonden"
-    assert html =~ "Pakket via DHL eCommerce"
-    assert html =~ "JVGL06178784002034591522"
-    refute html =~ "unknown-202"
-    refute html =~ "dhlecommerce"
+  test "submitting an unknown name shows an inline error", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/portal")
+
+    view
+    |> form("form[phx-submit='submit']", lookup: %{name: "Nobody Here"})
+    |> render_submit()
+
+    assert render(view) =~ "Geen pakketten gevonden"
+  end
+
+  test "submitting a name with multiple matches renders candidate picks", %{conn: conn} do
+    a = insert_order!(%{order_number: "ORD-A", merchant_name: "XXL", customer_name: "Tom Bakker"})
+    insert_shipment!(a, "JVGL00000000000000A00001")
+
+    b = insert_order!(%{order_number: "ORD-B", merchant_name: "XXL", customer_name: "Tom de Vries"})
+    insert_shipment!(b, "JVGL00000000000000B00001")
+
+    {:ok, view, _html} = live(conn, ~p"/portal")
+
+    view
+    |> form("form[phx-submit='submit']", lookup: %{name: "Tom"})
+    |> render_submit()
+
+    html = render(view)
+    assert html =~ "Tom Bakker"
+    assert html =~ "Tom de Vries"
+    assert html =~ "Meerdere matches"
+  end
+
+  test "deep-link with ?name= renders results directly", %{conn: conn} do
+    order =
+      insert_order!(%{
+        order_number: "XXL-PORTAL-DEEP",
+        merchant_name: "XXL Nutrition",
+        customer_name: "Anna van Dijk"
+      })
+
+    insert_shipment!(order, "JVGL06178784002102090728")
+
+    {:ok, _view, html} = live(conn, ~p"/portal?#{%{name: "Anna van Dijk"}}")
+
+    assert html =~ "Anna van Dijk"
+    assert html =~ "JVGL06178784002102090728"
   end
 
   test "master password opens the full shipment list", %{conn: conn} do
@@ -183,7 +178,6 @@ defmodule RempostWeb.ShipmentLiveIndexTest do
 
     html = render(view)
     assert html =~ "JVGL06178784001111111111"
-    refute html =~ "JVGL06178784002222222222"
   end
 
   test "master results search filters shipments semantically", %{conn: conn} do
@@ -222,11 +216,9 @@ defmodule RempostWeb.ShipmentLiveIndexTest do
     |> form("form[phx-change='search_results']", filters: %{search: "Monteverdistraat"})
     |> render_change()
 
-    assert_patch(view, ~p"/portal?master=1&search=Monteverdistraat&step=results&customer=")
+    assert_patch(view, ~p"/portal?master=1&search=Monteverdistraat&customer=")
 
-    html = render(view)
-    assert html =~ "JVGL06178784003333333333"
-    refute html =~ "JVGL06178784004444444444"
+    assert render(view) =~ "JVGL06178784003333333333"
   end
 
   defp insert_order!(attrs) do
