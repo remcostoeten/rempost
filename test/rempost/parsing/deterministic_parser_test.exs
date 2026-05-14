@@ -108,6 +108,31 @@ defmodule Rempost.Parsing.DeterministicParserTest do
     assert parsed.order_number == "5234424"
   end
 
+  test "extracts PostNL tracking codes from Sendcloud HTML" do
+    parsed =
+      email(%{
+        subject: "PostNL is onderweg",
+        raw_text: """
+        Bezorgadres
+        Monteverdistraat 212
+        2035 PH Haarlem
+        Nederland
+
+        Iduna Bink,
+
+        Je order 5085945 is onderweg en wordt bezorgd door PostNL.
+        Track & Trace 3SBAAS8530142
+        """
+      })
+      |> DeterministicParser.parse()
+
+    assert parsed.carrier == "postnl"
+    assert parsed.tracking_number == "3SBAAS8530142"
+    assert parsed.customer_name == "Iduna Bink"
+    assert parsed.customer_postal_code == "2035PH"
+    assert parsed.order_number == "5085945"
+  end
+
   test "extracts dutch delivered tracking data" do
     parsed =
       email(%{
@@ -129,7 +154,7 @@ defmodule Rempost.Parsing.DeterministicParserTest do
       })
       |> DeterministicParser.parse()
 
-    assert parsed.carrier == "unknown"
+    assert parsed.carrier == "postnl"
     assert parsed.status == :in_transit
   end
 

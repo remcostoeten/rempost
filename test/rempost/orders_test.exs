@@ -29,6 +29,50 @@ defmodule Rempost.OrdersTest do
     assert [%Shipment{}] = match.shipments
   end
 
+  test "lists customer summaries with order and shipment quantities" do
+    first =
+      insert_order!(%{
+        order_number: "XXL-SUMMARY-1",
+        merchant_name: "XXL Nutrition",
+        customer_name: "Iduna Bink",
+        customer_postal_code: "2035PH"
+      })
+
+    second =
+      insert_order!(%{
+        order_number: "XXL-SUMMARY-2",
+        merchant_name: "XXL Nutrition",
+        customer_name: "Iduna Bink",
+        customer_postal_code: "2035PH"
+      })
+
+    other =
+      insert_order!(%{
+        order_number: "XXL-SUMMARY-3",
+        merchant_name: "XXL Nutrition",
+        customer_name: "Jane van Dijk",
+        customer_postal_code: "1234AB"
+      })
+
+    insert_shipment!(first, "JVGL06178784002100000001")
+    insert_shipment!(second, "JVGL06178784002100000002")
+    insert_shipment!(other, "JVGL06178784002100000003")
+
+    summaries = Orders.list_customer_summaries()
+
+    assert %{
+             name: "Iduna Bink",
+             order_count: 2,
+             shipment_count: 2
+           } = Enum.find(summaries, &(&1.name == "Iduna Bink"))
+
+    assert %{
+             name: "Jane van Dijk",
+             order_count: 1,
+             shipment_count: 1
+           } = Enum.find(summaries, &(&1.name == "Jane van Dijk"))
+  end
+
   test "public lookup matches name with street and house number" do
     order =
       insert_order!(%{

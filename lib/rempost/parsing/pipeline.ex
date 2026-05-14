@@ -77,6 +77,7 @@ defmodule Rempost.Parsing.Pipeline do
     |> Repo.insert!(
       on_conflict: [
         set: [
+          order_id: attrs.order_id,
           status: attrs.status,
           carrier: attrs.carrier,
           tracking_url: attrs.tracking_url,

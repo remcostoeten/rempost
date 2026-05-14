@@ -7,7 +7,8 @@ if config_env() == :prod do
     inbound_token: System.fetch_env!("REMPOST_INBOUND_TOKEN"),
     admin_username: System.fetch_env!("REMPOST_ADMIN_USER"),
     admin_password: System.fetch_env!("REMPOST_ADMIN_PASSWORD"),
-    portal_access_answer: System.get_env("REMPOST_PORTAL_ACCESS_ANSWER")
+    portal_access_answer: System.get_env("REMPOST_PORTAL_ACCESS_ANSWER"),
+    portal_master_password: System.get_env("REMPOST_PORTAL_MASTER_PASSWORD")
 
   config :rempost, Rempost.Repo,
     url: database_url,

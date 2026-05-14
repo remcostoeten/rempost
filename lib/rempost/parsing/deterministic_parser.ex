@@ -1,5 +1,5 @@
 defmodule Rempost.Parsing.DeterministicParser do
-  @tracking_regex ~r/\b(?:JVGL[0-9A-Z]{10,30}|\d{10,20})\b/
+  @tracking_regex ~r/\b(?:JVGL[0-9A-Z]{10,30}|3S[0-9A-Z]{8,30}|\d{10,20})\b/i
   @order_regex ~r/\b(?:order|bestelling|bestelnummer|ordernummer)\b[^A-Z0-9]{0,12}(?:#\s*)?([A-Z0-9\-]{3,})\b/i
   @track_and_trace_regex ~r/track\s*&?\s*trace.*?([A-Z0-9]{6,})/i
   @tracking_url_regex ~r/https?:\/\/[^\s<>"']*(?:track|trace|parcel|pakket|zending|jvgl|dhl|postnl)[^\s<>"']*/i
@@ -7,7 +7,8 @@ defmodule Rempost.Parsing.DeterministicParser do
   @customer_name_regexes [
     ~r/(?:naam|name)\s*:\s*([^\n\r<]+)/i,
     ~r/(?:Nederland|Netherlands)\s+([A-ZÀ-ÿ][^\n\r,<]+),/i,
-    ~r/(?:beste|dear)\s+([A-ZÀ-ÿ][^\n\r,<]+)/i
+    ~r/(?:beste|dear)\s+([A-ZÀ-ÿ][^\n\r,<]+)/i,
+    ~r/^\s*([A-ZÀ-ÿ][A-ZÀ-ÿ' .-]+),\s*$/im
   ]
   @postal_code_regex ~r/\b([1-9][0-9]{3}\s?[A-Z]{2})\b/i
   @address_regexes [
@@ -38,6 +39,8 @@ defmodule Rempost.Parsing.DeterministicParser do
     cond do
       String.contains?(text, "jvgl") -> "dhl"
       String.contains?(text, "dhl") -> "dhl"
+      String.contains?(text, "postnl") -> "postnl"
+      String.contains?(text, "3s") -> "postnl"
       String.contains?(text, "ups") -> "ups"
       String.contains?(text, "fedex") -> "fedex"
       true -> "unknown"
@@ -60,8 +63,11 @@ defmodule Rempost.Parsing.DeterministicParser do
   end
 
   defp tracking_number(raw) do
-    extract(@tracking_regex, raw) ||
-      extract_group(@track_and_trace_regex, raw, 1)
+    tracking_number =
+      extract(@tracking_regex, raw) ||
+        extract_group(@track_and_trace_regex, raw, 1)
+
+    normalize_tracking_number(tracking_number)
   end
 
   defp tracking_url(raw), do: extract(@tracking_url_regex, raw)
@@ -123,6 +129,16 @@ defmodule Rempost.Parsing.DeterministicParser do
       not String.match?(normalized, ~r/\d/) -> nil
       true -> normalized
     end
+  end
+
+  defp normalize_tracking_number(nil), do: nil
+  defp normalize_tracking_number(""), do: nil
+
+  defp normalize_tracking_number(tracking_number) do
+    tracking_number
+    |> String.trim()
+    |> String.upcase()
+    |> blank_to_nil()
   end
 
   defp normalize_text(nil), do: nil

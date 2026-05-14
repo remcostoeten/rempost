@@ -2,6 +2,26 @@ defmodule Rempost.Orders do
   import Ecto.Query
 
   alias Rempost.{Orders.Order, Repo}
+  alias Rempost.Shipments.Shipment
+
+  def list_customer_summaries(limit \\ 50) do
+    Order
+    |> join(:left, [o], s in Shipment, on: s.order_id == o.id)
+    |> where([o], not is_nil(o.customer_name) and o.customer_name != "")
+    |> group_by(
+      [o, _s],
+      fragment("lower(regexp_replace(btrim(?), '\\s+', ' ', 'g'))", o.customer_name)
+    )
+    |> select([o, s], %{
+      key: fragment("lower(regexp_replace(btrim(?), '\\s+', ' ', 'g'))", o.customer_name),
+      name: fragment("max(?)", o.customer_name),
+      order_count: count(o.id, :distinct),
+      shipment_count: count(s.id)
+    })
+    |> order_by([o, _s], asc: fragment("max(?)", o.customer_name))
+    |> limit(^limit)
+    |> Repo.all()
+  end
 
   @doc """
   Looks up public order/shipment state by customer identity.

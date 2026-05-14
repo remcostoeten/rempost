@@ -1,6 +1,13 @@
 defmodule Rempost.Shipments do
   import Ecto.Query
-  alias Rempost.{Repo, Shipments.Shipment, Tracking.TrackingEvent}
+
+  alias Rempost.{
+    Emails.InboundEmail,
+    Orders.Order,
+    Repo,
+    Shipments.Shipment,
+    Tracking.TrackingEvent
+  }
 
   def topic, do: "shipments"
   def subscribe, do: Phoenix.PubSub.subscribe(Rempost.PubSub, topic())
@@ -8,10 +15,14 @@ defmodule Rempost.Shipments do
   def broadcast(event, payload),
     do: Phoenix.PubSub.broadcast(Rempost.PubSub, topic(), {event, payload})
 
-  def list_shipments do
+  def list_shipments(opts \\ []) do
     Shipment
+    |> join(:left, [s], o in assoc(s, :order))
+    |> join(:left, [_s, o], e in InboundEmail, on: e.id == o.inbound_email_id)
+    |> maybe_filter_customer(Keyword.get(opts, :customer_name))
+    |> maybe_semantic_search(Keyword.get(opts, :search))
     |> order_by([s], desc: s.updated_at)
-    |> preload(:order)
+    |> preload([_s, o, _e], order: o)
     |> Repo.all()
   end
 
@@ -26,21 +37,39 @@ defmodule Rempost.Shipments do
   end
 
   def lookup_public_shipments(name, mode, value, limit \\ 25) do
-    with {:ok, address_dynamic} <- public_address_match(mode, value),
+    with {:ok, order_address_dynamic} <- public_address_match(mode, value, :order),
+         {:ok, shipment_address_dynamic} <- public_address_match(mode, value, :shipment),
          name when is_binary(name) <- normalize_text(name) do
-      name = "%#{name}%"
+      term = "%#{name}%"
+      verified_names = verified_customer_names(term, order_address_dynamic)
 
       Shipment
       |> join(:inner, [s], o in assoc(s, :order))
-      |> where([_s, o], ilike(o.customer_name, ^name))
-      |> where(^address_dynamic)
+      |> where([_s, o], o.customer_name in ^verified_names)
+      |> where(^public_shipment_scope(shipment_address_dynamic))
       |> order_by([s], desc: s.updated_at)
       |> limit(^limit)
       |> preload([_s, o], order: o)
       |> Repo.all()
+      |> Enum.uniq_by(&normalized_tracking_number/1)
     else
       _ -> []
     end
+  end
+
+  defp verified_customer_names(term, address_dynamic) do
+    Order
+    |> where([o], ilike(o.customer_name, ^term))
+    |> where(^address_dynamic)
+    |> distinct(true)
+    |> select([o], o.customer_name)
+    |> Repo.all()
+  end
+
+  defp normalized_tracking_number(%Shipment{tracking_number: tracking_number}) do
+    tracking_number
+    |> to_string()
+    |> String.upcase()
   end
 
   def stats do
@@ -90,31 +119,112 @@ defmodule Rempost.Shipments do
     )
   end
 
-  defp public_address_match(mode, value) do
+  defp maybe_filter_customer(query, nil), do: query
+  defp maybe_filter_customer(query, ""), do: query
+
+  defp maybe_filter_customer(query, customer_name) do
+    customer_key = normalize_customer_key(customer_name)
+
+    where(
+      query,
+      [_s, o],
+      fragment("lower(regexp_replace(btrim(?), '\\s+', ' ', 'g'))", o.customer_name) ==
+        ^customer_key
+    )
+  end
+
+  defp maybe_semantic_search(query, nil), do: query
+  defp maybe_semantic_search(query, ""), do: query
+
+  defp maybe_semantic_search(query, raw_term) do
+    terms = search_terms(raw_term)
+
+    where(query, [s, o, e], ^semantic_search_dynamic(terms))
+  end
+
+  defp semantic_search_dynamic(terms) do
+    Enum.reduce(terms, false, fn term, dynamic ->
+      like = "%#{term}%"
+      postal_code = normalize_postal_code(term)
+
+      dynamic(
+        [s, o, e],
+        ^dynamic or
+          ilike(fragment("lower(?)", s.tracking_number), ^like) or
+          ilike(fragment("lower(?)", s.carrier), ^like) or
+          ilike(fragment("lower(?)", s.tracking_url), ^like) or
+          ilike(fragment("lower(?)", type(s.status, :string)), ^like) or
+          ilike(fragment("lower(?)", o.order_number), ^like) or
+          ilike(fragment("lower(?)", o.merchant_name), ^like) or
+          ilike(fragment("lower(?)", o.customer_name), ^like) or
+          ilike(fragment("lower(?)", o.customer_street), ^like) or
+          ilike(fragment("lower(?)", o.customer_house_number), ^like) or
+          o.customer_postal_code == ^postal_code or
+          ilike(fragment("lower(?)", e.from_email), ^like) or
+          ilike(fragment("lower(?)", e.subject), ^like) or
+          ilike(fragment("lower(?)", e.raw_text), ^like) or
+          ilike(fragment("lower(?)", e.message_id), ^like) or
+          ilike(fragment("lower(?)", type(e.status, :string)), ^like) or
+          ilike(fragment("to_char(?, 'YYYY-MM-DD HH24:MI')", e.received_at), ^like) or
+          ilike(fragment("to_char(?, 'DD-MM-YYYY HH24:MI')", e.received_at), ^like) or
+          ilike(fragment("to_char(?, 'YYYY-MM-DD HH24:MI')", s.updated_at), ^like) or
+          ilike(fragment("to_char(?, 'DD-MM-YYYY HH24:MI')", s.updated_at), ^like)
+      )
+    end)
+  end
+
+  defp public_address_match(mode, value, binding) do
     case {mode, normalize_text(value)} do
       {"postcode", value} when is_binary(value) ->
         postal_code = normalize_postal_code(value)
-        {:ok, dynamic([_s, o], o.customer_postal_code == ^postal_code)}
+        {:ok, address_dynamic(binding, :postal_code, postal_code)}
 
       {"house_number", value} when is_binary(value) ->
         {street, house_number} = split_address(value)
 
         if is_binary(street) and is_binary(house_number) do
           street = "%#{street}%"
-
-          {:ok,
-           dynamic(
-             [_s, o],
-             ilike(o.customer_street, ^street) and o.customer_house_number == ^house_number
-           )}
+          {:ok, address_dynamic(binding, :street_house_number, {street, house_number})}
         else
           house_number = normalize_house_number(value)
-          {:ok, dynamic([_s, o], o.customer_house_number == ^house_number)}
+          {:ok, address_dynamic(binding, :house_number, house_number)}
         end
 
       _ ->
         :error
     end
+  end
+
+  defp address_dynamic(:order, :postal_code, postal_code),
+    do: dynamic([o], o.customer_postal_code == ^postal_code)
+
+  defp address_dynamic(:order, :street_house_number, {street, house_number}),
+    do:
+      dynamic([o], ilike(o.customer_street, ^street) and o.customer_house_number == ^house_number)
+
+  defp address_dynamic(:order, :house_number, house_number),
+    do: dynamic([o], o.customer_house_number == ^house_number)
+
+  defp address_dynamic(:shipment, :postal_code, postal_code),
+    do: dynamic([_s, o], o.customer_postal_code == ^postal_code)
+
+  defp address_dynamic(:shipment, :street_house_number, {street, house_number}),
+    do:
+      dynamic(
+        [_s, o],
+        ilike(o.customer_street, ^street) and o.customer_house_number == ^house_number
+      )
+
+  defp address_dynamic(:shipment, :house_number, house_number),
+    do: dynamic([_s, o], o.customer_house_number == ^house_number)
+
+  defp public_shipment_scope(address_dynamic) do
+    dynamic(
+      [_s, o],
+      ^address_dynamic or
+        (is_nil(o.customer_postal_code) and is_nil(o.customer_street) and
+           is_nil(o.customer_house_number))
+    )
   end
 
   defp split_address(value) do
@@ -147,6 +257,47 @@ defmodule Rempost.Shipments do
     value
     |> String.upcase()
     |> String.replace(~r/\s+/, "")
+  end
+
+  defp normalize_customer_key(value) do
+    value
+    |> to_string()
+    |> String.trim()
+    |> String.replace(~r/\s+/, " ")
+    |> String.downcase()
+  end
+
+  defp search_terms(raw_term) do
+    raw_term
+    |> normalize_search_text()
+    |> expand_semantic_terms()
+    |> Enum.uniq()
+  end
+
+  defp normalize_search_text(value) do
+    value
+    |> to_string()
+    |> String.downcase()
+    |> String.trim()
+    |> String.replace(~r/\s+/, " ")
+  end
+
+  defp expand_semantic_terms(""), do: []
+
+  defp expand_semantic_terms(term) do
+    [term | semantic_aliases(term)]
+  end
+
+  defp semantic_aliases(term) do
+    cond do
+      term in ["bezorgd", "geleverd", "delivered", "afgeleverd"] -> ["delivered"]
+      term in ["onderweg", "in transit", "transport"] -> ["in_transit", "shipped"]
+      term in ["verzonden", "shipped", "verstuurd"] -> ["shipped", "in_transit"]
+      term in ["besteld", "order", "ordered", "placed"] -> ["ordered", "placed"]
+      term in ["mislukt", "failed", "fout", "aandacht"] -> ["failed"]
+      term in ["tracking", "track", "pakket", "shipment", "zending"] -> ["tracking", "shipment"]
+      true -> []
+    end
   end
 
   defp blank_to_nil(""), do: nil

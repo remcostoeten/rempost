@@ -5,6 +5,7 @@ defmodule RempostWeb.AdminAuthTest do
     previous_user = Application.get_env(:rempost, :admin_username)
     previous_password = Application.get_env(:rempost, :admin_password)
     previous_portal_answer = Application.get_env(:rempost, :portal_access_answer)
+    previous_portal_master = Application.get_env(:rempost, :portal_master_password)
     previous_portal_ttl = Application.get_env(:rempost, :portal_verification_ttl_seconds)
 
     Application.put_env(:rempost, :admin_username, "admin")
@@ -14,6 +15,7 @@ defmodule RempostWeb.AdminAuthTest do
       restore_env(:admin_username, previous_user)
       restore_env(:admin_password, previous_password)
       restore_env(:portal_access_answer, previous_portal_answer)
+      restore_env(:portal_master_password, previous_portal_master)
       restore_env(:portal_verification_ttl_seconds, previous_portal_ttl)
     end)
 
@@ -41,7 +43,7 @@ defmodule RempostWeb.AdminAuthTest do
   test "keeps portal route public", %{conn: conn} do
     conn = get(conn, ~p"/portal")
 
-    assert html_response(conn, 200) =~ "Dus, weer op zoek naar je"
+    assert html_response(conn, 200) =~ "Hi, zoek je"
   end
 
   test "stores verified portal state in session", %{conn: conn} do
@@ -55,6 +57,23 @@ defmodule RempostWeb.AdminAuthTest do
 
     assert redirected_to(conn) == "/portal"
     assert is_integer(get_session(conn, Rempost.Access.portal_session_key()))
+  end
+
+  test "stores master portal state in session", %{conn: conn} do
+    Application.put_env(:rempost, :portal_master_password, "master")
+    Application.put_env(:rempost, :portal_verification_ttl_seconds, 60)
+
+    conn =
+      conn
+      |> init_test_session(%{})
+      |> post(~p"/portal/verify", %{
+        "answer" => "master",
+        "scope" => "master",
+        "return_to" => "/portal"
+      })
+
+    assert redirected_to(conn) == "/portal"
+    assert is_integer(get_session(conn, Rempost.Access.portal_master_session_key()))
   end
 
   test "protects inbound email search api", %{conn: conn} do

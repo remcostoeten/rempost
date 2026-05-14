@@ -69,6 +69,7 @@ Required before sharing outside localhost:
 | `REMPOST_ADMIN_USER` | Basic Auth username for admin routes |
 | `REMPOST_ADMIN_PASSWORD` | Basic Auth password for admin routes |
 | `REMPOST_PORTAL_ACCESS_ANSWER` | shared answer for revealing public tracking details |
+| `REMPOST_PORTAL_MASTER_PASSWORD` | master password for opening all shipments in the portal |
 
 Optional:
 
@@ -80,7 +81,8 @@ Optional:
 
 Production requires inbound/admin secrets at boot. If admin credentials are
 missing at runtime, admin routes fail closed with `503`. If the portal access
-answer is missing, tracking reveal fails closed.
+answer is missing, tracking reveal fails closed. If the master password is
+missing, the master portal shortcut stays closed.
 
 ## Local database drift
 

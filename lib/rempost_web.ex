@@ -41,6 +41,7 @@ defmodule RempostWeb do
     quote do
       use Gettext, backend: RempostWeb.Gettext
       import Phoenix.HTML
+      import RempostWeb.CoreComponents
       alias Phoenix.LiveView.JS
       unquote(verified_routes())
     end

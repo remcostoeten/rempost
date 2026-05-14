@@ -48,6 +48,50 @@ defmodule Rempost.Parsing.PipelineTest do
     assert order.customer_house_number == "12B"
   end
 
+  test "moves an existing tracking number to the newly parsed order owner" do
+    first_email =
+      insert_email!(%{
+        message_id: "first-owner@example",
+        subject: "Shipment update",
+        raw_text: """
+        Naam: Sven de Langen
+        Adres: Schoolstraat 37
+        1948 DG Beverwijk
+        Track & Trace JVGL06178784002102090726
+        """
+      })
+
+    first_parsed = DeterministicParser.parse(first_email)
+    assert {:ok, %{shipment: first_shipment}} = Pipeline.apply!(first_email, first_parsed)
+
+    second_email =
+      insert_email!(%{
+        message_id: "second-owner@example",
+        subject: "DHL eCommerce Benelux is onderweg",
+        raw_text: """
+        Bezorgadres
+        Monteverdistraat 212
+        2035 PH Haarlem
+        Nederland
+
+        Iduna Bink,
+
+        Je order 5234424 is onderweg en wordt bezorgd door DHL eCommerce Benelux.
+        Track & Trace JVGL06178784002102090726
+        """
+      })
+
+    second_parsed = DeterministicParser.parse(second_email)
+    assert {:ok, %{shipment: moved_shipment}} = Pipeline.apply!(second_email, second_parsed)
+
+    assert moved_shipment.id == first_shipment.id
+
+    moved_shipment = Rempost.Shipments.get_shipment!(moved_shipment.id)
+
+    assert moved_shipment.order.customer_name == "Iduna Bink"
+    assert moved_shipment.order.customer_postal_code == "2035PH"
+  end
+
   defp insert_email!(attrs) do
     defaults = %{
       message_id: "message@example",

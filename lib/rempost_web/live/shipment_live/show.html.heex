@@ -1,52 +1,121 @@
-<section class="space-y-6">
-  <div class="rounded-xl border border-zinc-200 bg-white p-5">
-    <p class="text-xs font-semibold uppercase tracking-wide text-zinc-500">Shipment</p>
-    <h1 class="text-2xl font-semibold">
-      <%= if @verified?, do: @shipment.tracking_number, else: "Tracking hidden" %>
-    </h1>
-    <p class="mt-1 text-sm text-zinc-500">
-      <%= @shipment.order && @shipment.order.order_number %> / <%= @shipment.carrier %> / <%= @shipment.status %>
-    </p>
+<section class="relative min-h-screen overflow-hidden bg-zinc-50 px-6 py-10 text-zinc-950">
+  <div class="pointer-events-none absolute inset-0">
+    <div class="absolute -top-44 left-1/2 h-[520px] w-[520px] -translate-x-1/2 rounded-full bg-amber-300/20 blur-3xl">
+    </div>
+
+    <div class="absolute bottom-0 right-0 h-[380px] w-[380px] rounded-full bg-zinc-950/5 blur-3xl">
+    </div>
   </div>
 
-  <%= unless @verified? do %>
-    <div class="rounded-xl border border-amber-200 bg-amber-50 p-5">
-      <h2 class="font-semibold text-amber-950">Answer to reveal tracking</h2>
-      <p class="mt-1 text-sm text-amber-900">
-        Answer the security question to see the tracking number and open the carrier link.
+  <div class="relative mx-auto max-w-4xl space-y-6">
+    <header class="flex items-center justify-between gap-4">
+      <div class="flex items-center gap-2 text-sm font-semibold text-zinc-950">
+        <div class="grid h-7 w-7 place-items-center rounded-md bg-zinc-950 text-white shadow-sm">
+          <.icon name="hero-envelope" class="h-3.5 w-3.5" />
+        </div>
+        Postbus
+      </div>
+
+      <.link navigate={~p"/"} class="text-xs font-medium text-zinc-500 transition hover:text-zinc-950">
+        Terug
+      </.link>
+    </header>
+
+    <div class="rounded-2xl border border-zinc-200 bg-white/90 p-6 shadow-sm backdrop-blur">
+      <p class="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+        Shipment
       </p>
-      <.form for={%{}} action={~p"/portal/verify"} method="post" class="mt-4 flex flex-col gap-2 sm:flex-row">
-        <input type="hidden" name="return_to" value={~p"/shipments/#{@shipment.id}"} />
-        <input
-          type="password"
-          name="answer"
-          placeholder="Your answer"
-          aria-label="Security answer"
-          class="rounded-md border border-amber-300 px-3 py-2 text-sm sm:w-80"
-        />
-        <button class="rounded-md bg-amber-950 px-4 py-2 text-sm font-medium text-white">
-          Reveal tracking
-        </button>
-      </.form>
 
-      <%= if @verification_error do %>
-        <p class="mt-2 text-sm text-red-700"><%= @verification_error %></p>
-      <% end %>
+      <h1 class="mt-2 text-3xl font-semibold tracking-tight text-zinc-950">
+        <%= if @verified?, do: @shipment.tracking_number, else: "Tracking hidden" %>
+      </h1>
+
+      <p class="mt-2 text-sm leading-6 text-zinc-500">
+        <%= @shipment.order && @shipment.order.order_number %> /
+        <%= @shipment.carrier %> /
+        <%= @shipment.status %>
+      </p>
     </div>
-  <% end %>
 
-  <%= if @verified? && @shipment.tracking_url do %>
-    <a href={@shipment.tracking_url} target="_blank" rel="noreferrer" class="inline-flex rounded-md bg-blue-700 px-4 py-2 text-sm font-medium text-white">
-      Open carrier tracking
-    </a>
-  <% end %>
+    <%= unless @verified? do %>
+      <div class="rounded-2xl border border-amber-200 bg-amber-50/90 p-6 shadow-sm">
+        <div class="flex items-start gap-3">
+          <div class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-amber-100 text-amber-800">
+            <.icon name="hero-lock-closed" class="h-5 w-5" />
+          </div>
 
-  <ol class="space-y-3">
-    <%= for event <- @shipment.tracking_events do %>
-      <li class="rounded-lg border border-zinc-200 bg-white p-3">
-        <p class="font-medium"><%= event.status %></p>
-        <p class="text-xs text-zinc-500"><%= event.occurred_at %></p>
-      </li>
+          <div class="min-w-0 flex-1">
+            <h2 class="font-semibold text-amber-950">
+              Answer to reveal tracking
+            </h2>
+
+            <p class="mt-1 text-sm leading-6 text-amber-900">
+              Answer the security question to see the tracking number and open the carrier link.
+            </p>
+
+            <.form
+              for={%{}}
+              action={~p"/portal/verify"}
+              method="post"
+              class="mt-4 flex flex-col gap-3 sm:flex-row"
+            >
+              <input type="hidden" name="return_to" value={~p"/shipments/#{@shipment.id}"} />
+
+              <div class="flex flex-1 items-center gap-3 rounded-xl border border-amber-300 bg-white/80 px-4 py-3 shadow-sm transition-colors focus-within:border-amber-600">
+                <.icon name="hero-key" class="h-4 w-4 shrink-0 text-amber-700" />
+
+                <input
+                  type="password"
+                  name="answer"
+                  placeholder="Your answer"
+                  aria-label="Security answer"
+                  class="min-w-0 flex-1 bg-transparent text-sm text-amber-950 outline-none placeholder:text-amber-700/60"
+                />
+              </div>
+
+              <button class="inline-flex h-11 items-center justify-center rounded-xl bg-amber-950 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-900">
+                Reveal tracking
+              </button>
+            </.form>
+
+            <%= if @verification_error do %>
+              <p class="mt-2 text-sm text-red-700"><%= @verification_error %></p>
+            <% end %>
+          </div>
+        </div>
+      </div>
     <% end %>
-  </ol>
+
+    <%= if @verified? && @shipment.tracking_url do %>
+      <a
+        href={@shipment.tracking_url}
+        target="_blank"
+        rel="noreferrer"
+        class="inline-flex h-11 items-center justify-center rounded-xl bg-zinc-950 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-zinc-800"
+      >
+        Open carrier tracking
+      </a>
+    <% end %>
+
+    <div class="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
+      <div class="border-b border-zinc-200 bg-zinc-50/70 px-5 py-4">
+        <div class="flex items-center gap-2 text-sm">
+          <.icon name="hero-clock" class="h-4 w-4 text-zinc-500" />
+          <span class="font-semibold text-zinc-950">Tracking events</span>
+          <span class="rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-semibold text-amber-700">
+            <%= length(@shipment.tracking_events) %>
+          </span>
+        </div>
+      </div>
+
+      <ol class="divide-y divide-zinc-100">
+        <%= for event <- @shipment.tracking_events do %>
+          <li class="px-5 py-4 transition hover:bg-zinc-50/80">
+            <p class="font-medium text-zinc-950"><%= event.status %></p>
+            <p class="mt-1 text-xs text-zinc-500"><%= event.occurred_at %></p>
+          </li>
+        <% end %>
+      </ol>
+    </div>
+  </div>
 </section>

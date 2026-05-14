@@ -5,10 +5,12 @@ defmodule Rempost.AccessTest do
 
   setup do
     previous_answer = Application.get_env(:rempost, :portal_access_answer)
+    previous_master = Application.get_env(:rempost, :portal_master_password)
     previous_ttl = Application.get_env(:rempost, :portal_verification_ttl_seconds)
 
     on_exit(fn ->
       restore_env(:portal_access_answer, previous_answer)
+      restore_env(:portal_master_password, previous_master)
       restore_env(:portal_verification_ttl_seconds, previous_ttl)
     end)
 
@@ -26,6 +28,24 @@ defmodule Rempost.AccessTest do
 
     refute Access.portal_verified?("rempost")
     refute Access.portal_verified?("")
+  end
+
+  test "verifies configured portal master password case-insensitively" do
+    Application.put_env(:rempost, :portal_master_password, "Master Key")
+
+    assert Access.portal_master_verified?(" master key ")
+  end
+
+  test "portal session verification accepts the master session key" do
+    now = ~U[2026-05-14 10:00:00Z]
+
+    assert Access.portal_session_verified?(
+             %{
+               Access.portal_master_session_key() =>
+                 DateTime.to_unix(DateTime.add(now, 60, :second))
+             },
+             now
+           )
   end
 
   test "portal session verification expires by TTL timestamp" do
