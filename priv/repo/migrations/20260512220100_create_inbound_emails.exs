@@ -1,8 +1,8 @@
 defmodule Rempost.Repo.Migrations.CreateInboundEmails do
   use Ecto.Migration
+
   def change do
     create table(:inbound_emails) do
-      add :workspace_id, references(:workspaces, on_delete: :delete_all), null: false
       add :message_id, :string, null: false
       add :from_email, :string, null: false
       add :subject, :string
@@ -14,7 +14,8 @@ defmodule Rempost.Repo.Migrations.CreateInboundEmails do
       add :parse_error, :text
       timestamps(type: :utc_datetime)
     end
-    create index(:inbound_emails, [:workspace_id, :status])
-    create unique_index(:inbound_emails, [:workspace_id, :message_id])
+
+    create index(:inbound_emails, [:status])
+    create unique_index(:inbound_emails, [:message_id])
   end
 end

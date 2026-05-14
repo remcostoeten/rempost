@@ -19,8 +19,8 @@ defmodule Rempost.Shipments.Shipment do
 
   def changeset(shipment, attrs),
     do:
-    shipment
-    |> cast(attrs, [
+      shipment
+      |> cast(attrs, [
         :order_id,
         :carrier,
         :tracking_number,

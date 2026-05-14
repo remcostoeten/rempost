@@ -18,8 +18,8 @@ defmodule Rempost.Orders.Order do
 
   def changeset(order, attrs),
     do:
-    order
-    |> cast(attrs, [
+      order
+      |> cast(attrs, [
         :inbound_email_id,
         :order_number,
         :merchant_name,

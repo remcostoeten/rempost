@@ -6,12 +6,11 @@ defmodule RempostWeb.InboundEmailController do
 
   def index(conn, params) do
     with :ok <- authorize(conn, params) do
-      workspace_id = params["workspace_id"] || Rempost.Runtime.workspace_id()
       q = params["q"]
       limit = parse_limit(params["limit"])
 
       emails =
-        Rempost.Emails.search_recent(workspace_id, q, limit)
+        Rempost.Emails.search_recent(q, limit)
         |> Enum.map(fn email ->
           %{
             id: email.id,
@@ -25,7 +24,6 @@ defmodule RempostWeb.InboundEmailController do
         end)
 
       json(conn, %{
-        workspace_id: workspace_id,
         count: length(emails),
         limit: limit,
         emails: emails
@@ -43,7 +41,6 @@ defmodule RempostWeb.InboundEmailController do
       with :ok <- validate_required(normalized),
            {:ok, received_at} <- parse_received_at(normalized["received_at"]) do
         attrs = %{
-          workspace_id: normalized["workspace_id"] || Rempost.Runtime.workspace_id(),
           message_id: normalized["message_id"],
           from_email: normalized["from_email"],
           subject: normalized["subject"],
@@ -60,7 +57,6 @@ defmodule RempostWeb.InboundEmailController do
           {:error, reason} ->
             Logger.warning("Inbound email ingestion failed",
               reason: inspect(reason),
-              workspace_id: attrs.workspace_id,
               message_id: attrs.message_id
             )
 
@@ -105,7 +101,6 @@ defmodule RempostWeb.InboundEmailController do
 
   defp normalize_cloudflare_params(params) do
     %{
-      "workspace_id" => params["workspace_id"],
       "message_id" => params["message_id"] || params["id"],
       "from_email" => params["from_email"] || params["from"],
       "subject" => params["subject"],

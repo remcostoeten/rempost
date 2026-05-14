@@ -1,14 +1,11 @@
 defmodule RempostWeb.EmailDebugLive.Show do
   use RempostWeb, :live_view
 
-  @workspace_id Rempost.Runtime.workspace_id()
-
   def mount(%{"id" => id}, _session, socket) do
-    if connected?(socket), do: Rempost.Emails.subscribe(@workspace_id)
+    if connected?(socket), do: Rempost.Emails.subscribe()
 
     {:ok,
      socket
-     |> assign(workspace_id: @workspace_id)
      |> assign_email(id)
      |> assign(:retry_error, nil)}
   end
@@ -33,10 +30,6 @@ defmodule RempostWeb.EmailDebugLive.Show do
   end
 
   defp assign_email(socket, id) do
-    assign(
-      socket,
-      :email,
-      Rempost.Emails.get_email!(socket.assigns.workspace_id || @workspace_id, id)
-    )
+    assign(socket, :email, Rempost.Emails.get_email!(id))
   end
 end

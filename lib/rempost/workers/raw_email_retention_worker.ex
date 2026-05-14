@@ -4,10 +4,9 @@ defmodule Rempost.Workers.RawEmailRetentionWorker do
   @impl Oban.Worker
   def perform(%Oban.Job{args: args}) do
     retention_days = Map.get(args, "retention_days", 30)
-    workspace_id = Map.get(args, "workspace_id", Rempost.Runtime.workspace_id())
 
-    {count, _} = Rempost.Emails.purge_old_raw_emails(workspace_id, retention_days)
+    {count, _} = Rempost.Emails.purge_old_raw_emails(retention_days)
 
-    {:ok, %{purged_count: count, retention_days: retention_days, workspace_id: workspace_id}}
+    {:ok, %{purged_count: count, retention_days: retention_days}}
   end
 end

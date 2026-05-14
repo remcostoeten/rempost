@@ -33,7 +33,7 @@ Accepted payload fields (Cloudflare-friendly aliases supported):
 ## Query API
 
 - `GET /api/inbound/emails`
-  - optional query params: `workspace_id`, `q`, `limit` (max 200)
+  - optional query params: `q`, `limit` (max 200)
   - requires same token auth as inbound POST (`x-rempost-token` or `token`)
   - returns recent inbound emails for debugging/search integrations
 
@@ -98,8 +98,3 @@ A starter worker is included in `cloudflare/`.
    - `wrangler deploy`
 
 The worker receives inbound email, parses with `postal-mime`, and posts normalized JSON to `/api/inbound/email`.
-
-
-## Default workspace bootstrap
-
-On boot, the app ensures the configured `workspace_id` exists by creating a `Default Workspace` record if needed.

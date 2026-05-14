@@ -8,20 +8,19 @@ defmodule Rempost.Parsing.Pipeline do
     Shipments
   }
 
-  def apply!(workspace_id, email, parsed) do
+  def apply!(email, parsed) do
     Repo.transaction(fn ->
-      order = upsert_order!(workspace_id, email, parsed)
-      shipment = upsert_shipment!(workspace_id, order, parsed)
-      create_tracking_event!(workspace_id, shipment, parsed)
+      order = upsert_order!(email, parsed)
+      shipment = upsert_shipment!(order, parsed)
+      create_tracking_event!(shipment, parsed)
       email |> InboundEmail.changeset(%{status: :parsed, parse_error: nil}) |> Repo.update!()
-      Shipments.broadcast(workspace_id, :shipment_updated, shipment.id)
+      Shipments.broadcast(:shipment_updated, shipment.id)
       shipment
     end)
   end
 
-  defp upsert_order!(workspace_id, email, parsed) do
+  defp upsert_order!(email, parsed) do
     attrs = %{
-      workspace_id: workspace_id,
       inbound_email_id: email.id,
       order_number: parsed.order_number || "unknown-#{email.id}",
       merchant_name: email.from_email
@@ -31,14 +30,13 @@ defmodule Rempost.Parsing.Pipeline do
     |> Order.changeset(attrs)
     |> Repo.insert!(
       on_conflict: [set: [merchant_name: attrs.merchant_name, updated_at: DateTime.utc_now()]],
-      conflict_target: [:workspace_id, :order_number],
+      conflict_target: :order_number,
       returning: true
     )
   end
 
-  defp upsert_shipment!(workspace_id, order, parsed) do
+  defp upsert_shipment!(order, parsed) do
     attrs = %{
-      workspace_id: workspace_id,
       order_id: order.id,
       carrier: parsed.carrier,
       tracking_number: parsed.tracking_number || "pending-#{order.id}",
@@ -57,15 +55,14 @@ defmodule Rempost.Parsing.Pipeline do
           updated_at: DateTime.utc_now()
         ]
       ],
-      conflict_target: [:workspace_id, :tracking_number],
+      conflict_target: :tracking_number,
       returning: true
     )
   end
 
-  defp create_tracking_event!(workspace_id, shipment, parsed) do
+  defp create_tracking_event!(shipment, parsed) do
     %TrackingEvent{}
     |> TrackingEvent.changeset(%{
-      workspace_id: workspace_id,
       shipment_id: shipment.id,
       status: Atom.to_string(parsed.status),
       occurred_at: DateTime.utc_now(),

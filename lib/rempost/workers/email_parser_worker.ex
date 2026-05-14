@@ -5,16 +5,13 @@ defmodule Rempost.Workers.EmailParserWorker do
   alias Rempost.{Repo, Emails, Emails.InboundEmail}
 
   @impl Oban.Worker
-  def perform(%Oban.Job{
-        args: %{"inbound_email_id" => inbound_email_id, "workspace_id" => workspace_id}
-      }) do
-    with %InboundEmail{} = email <-
-           Repo.get_by(InboundEmail, id: inbound_email_id, workspace_id: workspace_id),
+  def perform(%Oban.Job{args: %{"inbound_email_id" => inbound_email_id}}) do
+    with %InboundEmail{} = email <- Repo.get(InboundEmail, inbound_email_id),
          {:ok, %InboundEmail{}} <- mark_processing(email) do
-      Emails.broadcast(workspace_id, :email_processing, email.id)
+      Emails.broadcast(:email_processing, email.id)
       parsed = Rempost.Parsing.DeterministicParser.parse(email)
-      Rempost.Parsing.Pipeline.apply!(workspace_id, email, parsed)
-      Emails.broadcast(workspace_id, :email_parsed, email.id)
+      Rempost.Parsing.Pipeline.apply!(email, parsed)
+      Emails.broadcast(:email_parsed, email.id)
       :ok
     else
       nil -> {:discard, :inbound_email_not_found}
@@ -23,12 +20,11 @@ defmodule Rempost.Workers.EmailParserWorker do
     error ->
       Logger.error("Email parser worker failed",
         error: Exception.message(error),
-        workspace_id: workspace_id,
         inbound_email_id: inbound_email_id
       )
 
-      maybe_mark_failed(workspace_id, inbound_email_id, Exception.message(error))
-      Emails.broadcast(workspace_id, :email_failed, inbound_email_id)
+      maybe_mark_failed(inbound_email_id, Exception.message(error))
+      Emails.broadcast(:email_failed, inbound_email_id)
       {:error, Exception.message(error)}
   end
 
@@ -38,8 +34,8 @@ defmodule Rempost.Workers.EmailParserWorker do
     |> Repo.update()
   end
 
-  defp maybe_mark_failed(workspace_id, inbound_email_id, message) do
-    case Repo.get_by(InboundEmail, id: inbound_email_id, workspace_id: workspace_id) do
+  defp maybe_mark_failed(inbound_email_id, message) do
+    case Repo.get(InboundEmail, inbound_email_id) do
       nil ->
         :ok
 

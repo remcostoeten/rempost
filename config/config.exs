@@ -4,8 +4,9 @@ config :rempost,
   ecto_repos: [Rempost.Repo],
   generators: [timestamp_type: :utc_datetime]
 
-config :rempost, :workspace_id, 1
-config :rempost, :inbound_token, "324b10a95e4a7ed7fcf82ca30b4986ee40200cb36b4dab70f0fb3fc9679bd1c2"
+config :rempost,
+       :inbound_token,
+       "324b10a95e4a7ed7fcf82ca30b4986ee40200cb36b4dab70f0fb3fc9679bd1c2"
 
 config :rempost, Rempost.Repo, migration_timestamps: [type: :utc_datetime]
 
@@ -15,8 +16,7 @@ config :rempost, Oban,
     Oban.Plugins.Pruner,
     {Oban.Plugins.Cron,
      crontab: [
-       {"0 3 * * *", Rempost.Workers.RawEmailRetentionWorker,
-        args: %{"retention_days" => 30, "workspace_id" => 1}}
+       {"0 3 * * *", Rempost.Workers.RawEmailRetentionWorker, args: %{"retention_days" => 30}}
      ]}
   ],
   queues: [emails: 20, parsing: 20, default: 10]

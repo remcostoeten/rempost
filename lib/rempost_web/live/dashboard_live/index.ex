@@ -2,15 +2,10 @@ defmodule RempostWeb.DashboardLive.Index do
   use RempostWeb, :live_view
 
   def mount(_params, _session, socket) do
-    workspace_id = Rempost.Runtime.workspace_id()
-
-    if connected?(socket) do
-      Rempost.Emails.subscribe(workspace_id)
-    end
+    if connected?(socket), do: Rempost.Emails.subscribe()
 
     {:ok,
      socket
-     |> assign(workspace_id: workspace_id)
      |> assign(search: "")
      |> assign(total_count: 0)
      |> load_emails()}
@@ -32,7 +27,7 @@ defmodule RempostWeb.DashboardLive.Index do
   end
 
   defp load_emails(socket) do
-    emails = Rempost.Emails.search_recent(socket.assigns.workspace_id, socket.assigns.search)
+    emails = Rempost.Emails.search_recent(socket.assigns.search)
     assign(socket, emails: emails, total_count: length(emails))
   end
 end
