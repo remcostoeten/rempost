@@ -19,9 +19,6 @@ defmodule Rempost.Access do
 
   def portal_master_verified?(_answer), do: false
 
-  # Stub — remove in Task 7 once ShipmentLive.Index no longer calls this.
-  def portal_session_verified?(_session, _now \\ DateTime.utc_now()), do: false
-
   def portal_master_session_verified?(session, now \\ DateTime.utc_now())
       when is_map(session) do
     session_verified?(session, @portal_master_session_key, now)

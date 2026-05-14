@@ -4,10 +4,7 @@ defmodule RempostWeb.ShipmentLive.Index do
   def mount(params, session, socket) do
     if connected?(socket), do: Rempost.Shipments.subscribe()
 
-    name = params |> Map.get("name", Map.get(params, "q", "")) |> String.trim()
-    mode = params |> Map.get("mode", "postcode") |> normalize_mode()
-    value = params |> Map.get("value", "") |> String.trim()
-    verified? = Rempost.Access.portal_session_verified?(session)
+    name = params |> Map.get("name", "") |> String.trim()
 
     master_access? =
       Rempost.Access.portal_master_session_verified?(session) && params["step"] != "start"
@@ -19,16 +16,13 @@ defmodule RempostWeb.ShipmentLive.Index do
      |> assign(:selected_customer, params |> Map.get("customer", "") |> String.trim())
      |> assign(:search_query, params |> Map.get("search", "") |> String.trim())
      |> assign(:selected_shipment_id, nil)
-     |> assign(:q, name)
+     |> assign(:query, name)
+     |> assign(:suggestions, [])
+     |> assign(:candidates, [])
      |> assign(:lookup_name, name)
-     |> assign(:verification_mode, mode)
-     |> assign(:verification_value, value)
-     |> assign(:lookup_status, :idle)
      |> assign(:lookup_error, nil)
-     |> assign(:verified?, verified?)
      |> assign(:master_access?, master_access?)
-     |> assign(:step, initial_step(params, name, verified?, master_access?))
-     |> assign(:verification_error, flash_error(socket.assigns.flash))
+     |> assign(:step, initial_step(name, master_access?))
      |> maybe_load_initial_shipments()}
   end
 
@@ -40,142 +34,86 @@ defmodule RempostWeb.ShipmentLive.Index do
      |> assign(:selected_customer, "")
      |> assign(:search_query, "")
      |> assign(:selected_shipment_id, nil)
-     |> assign(:q, "")
+     |> assign(:query, "")
+     |> assign(:suggestions, [])
+     |> assign(:candidates, [])
      |> assign(:lookup_name, "")
-     |> assign(:verification_mode, "postcode")
-     |> assign(:verification_value, "")
-     |> assign(:lookup_status, :idle)
      |> assign(:lookup_error, nil)
-     |> assign(:verification_error, nil)
      |> assign(:master_access?, false)
-     |> assign(:step, :identify)}
+     |> assign(:step, :lookup)}
   end
 
-  def handle_params(%{"step" => "verify"} = params, _uri, socket) do
-    name = params |> Map.get("name", "") |> String.trim()
-
+  def handle_params(%{"name" => name} = params, _uri, socket) when name != "" do
     {:noreply,
      socket
-     |> assign(:q, name)
-     |> assign(:lookup_name, name)
-     |> assign(:verification_mode, params |> Map.get("mode", "postcode") |> normalize_mode())
-     |> assign(:verification_value, params |> Map.get("value", "") |> String.trim())
-     |> assign(:lookup_status, :idle)
-     |> assign(:lookup_error, nil)
-     |> assign(:step, if(name == "", do: :identify, else: :verify))}
-  end
-
-  def handle_params(%{"step" => "results"} = params, _uri, socket) do
-    name = params |> Map.get("name", socket.assigns.lookup_name) |> String.trim()
-    mode = params |> Map.get("mode", socket.assigns.verification_mode) |> normalize_mode()
-    value = params |> Map.get("value", socket.assigns.verification_value) |> String.trim()
-
-    {:noreply,
-     socket
-     |> assign(:q, name)
+     |> assign(:query, name)
      |> assign(:lookup_name, name)
      |> assign(:selected_customer, params |> Map.get("customer", "") |> String.trim())
      |> assign(:search_query, params |> Map.get("search", "") |> String.trim())
-     |> assign(:verification_mode, mode)
-     |> assign(:verification_value, value)
-     |> assign(:lookup_status, :success)
      |> assign(:lookup_error, nil)
+     |> assign(:suggestions, [])
+     |> assign(:candidates, [])
      |> assign(:step, :results)
      |> load_public_shipments()}
   end
 
   def handle_params(_params, _uri, socket), do: {:noreply, socket}
 
-  def handle_event("identify", %{"lookup" => %{"name" => name}}, socket) do
+  def handle_event("suggest", %{"value" => q}, socket) do
+    suggestions = Rempost.Shipments.suggest_recipients(q)
+    {:noreply, socket |> assign(:query, q) |> assign(:suggestions, suggestions)}
+  end
+
+  def handle_event("pick", %{"name" => name}, socket) do
     name = String.trim(name)
 
-    socket =
-      socket
-      |> assign(:q, name)
-      |> assign(:lookup_name, name)
-      |> assign(:lookup_error, nil)
-
     if name == "" do
-      {:noreply,
-       socket
-       |> assign(:lookup_status, :error)
-       |> assign(:lookup_error, "Vul eerst de naam in waarop je besteld hebt.")}
+      {:noreply, socket}
     else
-      {:noreply,
-       socket
-       |> assign(:lookup_status, :idle)
-       |> assign(:step, :verify)
-       |> push_patch(to: portal_url(%{step: "verify", name: name}))}
+      {:noreply, push_patch(socket, to: ~p"/portal?#{%{name: name}}")}
     end
   end
 
-  def handle_event("edit_lookup", _params, socket) do
-    {:noreply,
-     socket
-     |> assign(:step, :identify)
-     |> assign(:lookup_status, :idle)
-     |> assign(:lookup_error, nil)
-     |> push_patch(to: portal_url(%{step: "start"}))}
-  end
-
-  def handle_event("switch_verification_mode", %{"mode" => mode}, socket) do
-    mode = normalize_mode(mode)
-
-    {:noreply,
-     socket
-     |> assign(:verification_mode, mode)
-     |> assign(:verification_value, "")
-     |> assign(:lookup_status, :idle)
-     |> assign(:lookup_error, nil)
-     |> push_patch(
-       to: portal_url(%{step: "verify", name: socket.assigns.lookup_name, mode: mode})
-     )}
-  end
-
-  def handle_event(
-        "verify_address",
-        %{"verification" => %{"mode" => mode, "value" => value}},
-        socket
-      ) do
-    value = String.trim(value)
-    mode = normalize_mode(mode)
-
-    socket =
-      socket
-      |> assign(:verification_mode, mode)
-      |> assign(:verification_value, value)
-      |> assign(:lookup_error, nil)
+  def handle_event("submit", %{"lookup" => %{"name" => name}}, socket) do
+    name = String.trim(name)
 
     cond do
-      socket.assigns.lookup_name == "" ->
+      name == "" ->
         {:noreply,
          socket
-         |> assign(:step, :identify)
-         |> assign(:lookup_status, :error)
-         |> assign(:lookup_error, "Vul eerst de naam in waarop je besteld hebt.")}
-
-      value == "" ->
-        {:noreply,
-         socket
-         |> assign(:lookup_status, :error)
-         |> assign(:lookup_error, verification_prompt(mode))}
+         |> assign(:lookup_error, "Vul je naam in om verder te gaan.")
+         |> assign(:candidates, [])}
 
       true ->
-        {:noreply,
-         socket
-         |> assign(:lookup_status, :success)
-         |> assign(:step, :results)
-         |> load_public_shipments()
-         |> push_patch(
-           to:
-             portal_url(%{
-               step: "results",
-               name: socket.assigns.lookup_name,
-               mode: mode,
-               value: value
-             })
-         )}
+        case Rempost.Shipments.suggest_recipients(name) do
+          [] ->
+            {:noreply,
+             socket
+             |> assign(:lookup_error,
+               "Geen pakketten gevonden onder die naam. Controleer de spelling.")
+             |> assign(:candidates, [])}
+
+          [%{name: exact}] ->
+            {:noreply, push_patch(socket, to: ~p"/portal?#{%{name: exact}}")}
+
+          [_ | _] = many ->
+            {:noreply,
+             socket
+             |> assign(:lookup_error, nil)
+             |> assign(:candidates, Enum.map(many, & &1.name))}
+        end
     end
+  end
+
+  def handle_event("clear", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:query, "")
+     |> assign(:suggestions, [])
+     |> assign(:candidates, [])
+     |> assign(:lookup_error, nil)
+     |> assign(:step, :lookup)
+     |> push_patch(to: ~p"/portal?step=start")}
   end
 
   def handle_event("select_shipment", %{"id" => id}, socket) do
@@ -190,28 +128,7 @@ defmodule RempostWeb.ShipmentLive.Index do
      |> assign(:search_query, search)
      |> push_patch(
        to:
-         portal_url(%{
-           step: "results",
-           master: "1",
-           customer: socket.assigns.selected_customer,
-           search: search
-         })
-     )}
-  end
-
-  def handle_event("back_to_verify", _params, socket) do
-    {:noreply,
-     socket
-     |> assign(:step, :verify)
-     |> assign(:lookup_status, :idle)
-     |> assign(:lookup_error, nil)
-     |> push_patch(
-       to:
-         portal_url(%{
-           step: "verify",
-           name: socket.assigns.lookup_name,
-           mode: socket.assigns.verification_mode
-         })
+         ~p"/portal?#{%{master: "1", customer: socket.assigns.selected_customer, search: search}}"
      )}
   end
 
@@ -224,17 +141,13 @@ defmodule RempostWeb.ShipmentLive.Index do
        |> assign(:master_access?, true)
        |> assign(:step, :results)
        |> assign(:lookup_error, nil)
-       |> assign(:lookup_status, :success)
        |> assign(:lookup_name, "Alle zendingen")
        |> assign(:selected_customer, "")
        |> assign(:search_query, "")
        |> load_public_shipments()
-       |> push_patch(to: portal_url(%{step: "results", master: "1"}))}
+       |> push_patch(to: ~p"/portal?#{%{master: "1"}}")}
     else
-      {:noreply,
-       socket
-       |> assign(:lookup_error, "Master password klopt niet.")
-       |> assign(:lookup_status, :error)}
+      {:noreply, assign(socket, :lookup_error, "Master password klopt niet.")}
     end
   end
 
@@ -243,15 +156,9 @@ defmodule RempostWeb.ShipmentLive.Index do
 
   def handle_info({:shipment_updated, _id}, socket), do: {:noreply, socket}
 
-  defp initial_step(%{"step" => "start"}, _name, _verified?, _master?), do: :identify
-  defp initial_step(%{"step" => "results"}, _name, _verified?, _master?), do: :results
-  defp initial_step(%{"step" => "verify"}, "", _verified?, _master?), do: :identify
-  defp initial_step(%{"step" => "verify"}, _name, _verified?, _master?), do: :verify
-  defp initial_step(_params, _name, _verified?, true), do: :results
-  defp initial_step(_params, "", _verified?, _master?), do: :identify
-  defp initial_step(_params, _name, _verified?, _master?), do: :verify
-
-  defp portal_url(params), do: ~p"/portal?#{params}"
+  defp initial_step(_name, true), do: :results
+  defp initial_step("", _master?), do: :lookup
+  defp initial_step(_name, false), do: :results
 
   defp maybe_load_initial_shipments(%{assigns: %{step: :results}} = socket),
     do: load_public_shipments(socket)
@@ -266,11 +173,7 @@ defmodule RempostWeb.ShipmentLive.Index do
           search: socket.assigns.search_query
         )
       else
-        Rempost.Shipments.lookup_public_shipments(
-          socket.assigns.lookup_name,
-          socket.assigns.verification_mode,
-          socket.assigns.verification_value
-        )
+        Rempost.Shipments.lookup_by_recipient(socket.assigns.lookup_name)
       end
 
     socket
@@ -287,8 +190,6 @@ defmodule RempostWeb.ShipmentLive.Index do
   end
 
   defp load_customer_summaries(_socket), do: []
-
-  defp flash_error(flash), do: Map.get(flash, "error") || Map.get(flash, :error)
 
   defp selected_shipment_id([], _selected_id), do: nil
 
@@ -330,11 +231,6 @@ defmodule RempostWeb.ShipmentLive.Index do
 
   def identity_label(_lookup_name, true), do: "Master toegang"
   def identity_label(lookup_name, false), do: lookup_name
-
-  def step_active?(:identify, _step), do: true
-  def step_active?(:verify, step), do: step in [:verify, :results]
-  def step_active?(:results, :results), do: true
-  def step_active?(_step_key, _step), do: false
 
   def shipment_title(shipment) do
     merchant =
@@ -467,24 +363,6 @@ defmodule RempostWeb.ShipmentLive.Index do
       else: "bg-[#ded6ca]"
   end
 
-  def status_feedback(:success),
-    do: {"success", "Adres gecontroleerd. Dit zijn de zendingen die we konden koppelen."}
-
-  def status_feedback(:loading), do: {"loading", "We controleren je gegevens..."}
-  def status_feedback(:error), do: {"error", "Controleer de gegevens en probeer het opnieuw."}
-  def status_feedback(_status), do: nil
-
-  def address_label("house_number"), do: "Huisnummer"
-  def address_label(_mode), do: "Postcode"
-
-  def address_placeholder("house_number"), do: "Bijvoorbeeld 212"
-  def address_placeholder(_mode), do: "Bijvoorbeeld 2035 PH"
-
-  def address_toggle("house_number"), do: {"postcode", "Gebruik postcode in plaats daarvan"}
-
-  def address_toggle(_mode),
-    do: {"house_number", "Ik weet mijn postcode niet, maar wel mijn huisnummer"}
-
   def format_datetime(nil), do: "Nog niet bekend"
 
   def format_datetime(datetime) do
@@ -527,14 +405,20 @@ defmodule RempostWeb.ShipmentLive.Index do
     step_index <= current_index
   end
 
-  defp normalize_mode("house_number"), do: "house_number"
-  defp normalize_mode("postcode"), do: "postcode"
-  defp normalize_mode(_mode), do: "postcode"
-
-  defp verification_prompt("house_number"),
-    do: "Vul je huisnummer in om de zendingen te controleren."
-
-  defp verification_prompt(_mode), do: "Vul je postcode in om de zendingen te controleren."
-
   def master_access_placeholder, do: "Master password"
+
+  # Temporary stubs — referenced by template until Task 8 rewrites index.html.heex
+  def step_active?(step_key, step), do: step_active_dot?(step_key, step)
+  def address_label("house_number"), do: "Huisnummer"
+  def address_label(_mode), do: "Postcode"
+  def address_placeholder("house_number"), do: "Bijvoorbeeld 212"
+  def address_placeholder(_mode), do: "Bijvoorbeeld 2035 PH"
+  def address_toggle("house_number"), do: {"postcode", "Gebruik postcode in plaats daarvan"}
+
+  def address_toggle(_mode),
+    do: {"house_number", "Ik weet mijn postcode niet, maar wel mijn huisnummer"}
+
+  def step_active_dot?(:lookup, _step), do: true
+  def step_active_dot?(:results, :results), do: true
+  def step_active_dot?(_, _), do: false
 end

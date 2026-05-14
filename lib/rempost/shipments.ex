@@ -86,9 +86,6 @@ defmodule Rempost.Shipments do
     |> Repo.all()
   end
 
-  # Deprecated stub for ShipmentLive.Index — replaced by lookup_by_recipient/1 in Task 7.
-  def lookup_public_shipments(_name, _mode, _value, _limit \\ 25), do: []
-
   def stats do
     base = Shipment
 
