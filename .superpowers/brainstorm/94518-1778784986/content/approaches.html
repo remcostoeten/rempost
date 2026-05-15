@@ -1,0 +1,80 @@
+<h2>Three intro approaches</h2>
+<p class="subtitle">All three drop the postcode step entirely. Pick the feel you want.</p>
+
+<div class="cards" data-multiselect>
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup" style="margin:0;height:100%">
+        <div class="mockup-header">A · Single picker</div>
+        <div class="mockup-body" style="padding:24px;display:flex;flex-direction:column;gap:14px;align-items:center;justify-content:center;text-align:center">
+          <div style="font-size:13px;color:#888">Hé, wie ben je?</div>
+          <input class="mock-input" placeholder="Begin met typen..." style="width:80%">
+          <div style="width:80%;text-align:left;display:flex;flex-direction:column;gap:6px">
+            <div style="background:#f5f0e6;padding:8px 10px;border-radius:6px;font-size:12px">Anna van Dijk</div>
+            <div style="background:#f5f0e6;padding:8px 10px;border-radius:6px;font-size:12px">Annelies B.</div>
+            <div style="background:#f5f0e6;padding:8px 10px;border-radius:6px;font-size:12px">Anouk Janssen</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A · Single picker</h3>
+      <p>One field. Type → autocomplete from real recipients → pick → immediately see your shipments. Zero ceremony.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup" style="margin:0;height:100%">
+        <div class="mockup-header">B · Recent + search</div>
+        <div class="mockup-body" style="padding:18px;display:flex;flex-direction:column;gap:10px">
+          <div style="font-size:12px;color:#888;text-transform:uppercase;letter-spacing:0.5px">Recente bestellingen</div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <div style="background:white;border:1px solid #ded6ca;padding:10px;border-radius:8px;font-size:12px">
+              <div style="font-weight:600">Anna · XXL Nutrition</div>
+              <div style="color:#888;font-size:11px">Onderweg · 2 dagen geleden</div>
+            </div>
+            <div style="background:white;border:1px solid #ded6ca;padding:10px;border-radius:8px;font-size:12px">
+              <div style="font-weight:600">Tom · Sendcloud</div>
+              <div style="color:#888;font-size:11px">Bezorgd · 5 dagen geleden</div>
+            </div>
+            <div style="background:white;border:1px solid #ded6ca;padding:10px;border-radius:8px;font-size:12px">
+              <div style="font-weight:600">Lisa · DHL</div>
+              <div style="color:#888;font-size:11px">Verzonden · gisteren</div>
+            </div>
+          </div>
+          <input class="mock-input" placeholder="Of zoek op naam..." style="margin-top:6px">
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B · Recent + search</h3>
+      <p>Shows last ~5 active shipments by default — friend often spots theirs immediately. Search field below for older orders.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup" style="margin:0;height:100%">
+        <div class="mockup-header">C · Conversational</div>
+        <div class="mockup-body" style="padding:20px;display:flex;flex-direction:column;gap:12px;justify-content:center">
+          <div style="font-size:15px;line-height:1.4">👋 Hoi! Wie zoekt z'n pakket?</div>
+          <input class="mock-input" placeholder="Typ je naam">
+          <div style="font-size:11px;color:#aaa;font-style:italic">↳ "Anna, klopt dat?"</div>
+          <div style="font-size:13px;background:#f5f0e6;padding:10px;border-radius:8px">
+            Je hebt 2 pakketten lopen. Welke bedoel je?
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C · Conversational</h3>
+      <p>Chat-like step-by-step. Friendlier tone, more personality. But more screens = more taps; can feel slow.</p>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:32px">
+  <h3>My recommendation: A</h3>
+  <p>For "where is my package", one screen is the right answer. Autocomplete makes typos a non-issue. B's "recent" list is tempting but only helps the first friend who looks today — and it shows everyone's orders to everyone (you said that's fine, but it's not actually useful UX). C adds friction in the name of warmth; a clean single field with a nice greeting on top achieves the same warmth without the extra screens.</p>
+</div>

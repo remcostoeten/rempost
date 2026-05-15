@@ -1,4 +1,5 @@
 module.exports = {
+  darkMode: 'class',
   content: [
     "./lib/rempost_web/**/*.*ex",
     "./lib/rempost_web/**/*.heex",

@@ -1,6 +1,8 @@
 defmodule RempostWeb.EmailDebugLive.Show do
   use RempostWeb, :live_view
 
+  alias Rempost.Parsing.DeterministicParser
+
   def mount(%{"id" => id}, _session, socket) do
     if connected?(socket), do: Rempost.Emails.subscribe()
 
@@ -30,6 +32,51 @@ defmodule RempostWeb.EmailDebugLive.Show do
   end
 
   defp assign_email(socket, id) do
-    assign(socket, :email, Rempost.Emails.get_email!(id))
+    email = Rempost.Emails.get_email!(id)
+    parsed = safe_parse(email)
+
+    socket
+    |> assign(:email, email)
+    |> assign(:parsed, parsed)
   end
+
+  defp safe_parse(email) do
+    DeterministicParser.parse(email)
+  rescue
+    _ -> nil
+  end
+
+  def linkify(nil), do: []
+  def linkify(""), do: []
+
+  def linkify(text) do
+    pattern =
+      ~r/(https?:\/\/[^\s<>"']+|\bJVGL[0-9A-Z]{10,30}\b|\b3S[0-9A-Z]{8,30}\b)/i
+
+    text
+    |> String.split(pattern, include_captures: true)
+    |> Enum.map(&classify_token/1)
+  end
+
+  defp classify_token("https://" <> _ = url), do: {:link, url, url}
+  defp classify_token("http://" <> _ = url), do: {:link, url, url}
+
+  defp classify_token(token) do
+    cond do
+      String.match?(token, ~r/^JVGL[0-9A-Z]{10,30}$/i) ->
+        {:link,
+         "https://my.dhlecommerce.nl/home/tracktrace/#{String.upcase(token)}?role=consumer-receiver",
+         token}
+
+      String.match?(token, ~r/^3S[0-9A-Z]{8,30}$/i) ->
+        {:link, "https://postnl.nl/tracktrace/?B=#{String.upcase(token)}&P=&D=NL&T=C", token}
+
+      true ->
+        {:text, token}
+    end
+  end
+
+  def field_or_dash(nil), do: "—"
+  def field_or_dash(""), do: "—"
+  def field_or_dash(value), do: to_string(value)
 end

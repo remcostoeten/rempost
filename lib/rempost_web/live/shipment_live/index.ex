@@ -74,7 +74,12 @@ defmodule RempostWeb.ShipmentLive.Index do
 
   def handle_event("suggest", %{"value" => q}, socket) do
     suggestions = Rempost.Shipments.suggest_recipients(q)
-    {:noreply, socket |> assign(:query, q) |> assign(:suggestions, suggestions)}
+    {:noreply,
+     socket
+     |> assign(:query, q)
+     |> assign(:suggestions, suggestions)
+     |> assign(:candidates, [])
+     |> assign(:lookup_error, nil)}
   end
 
   def handle_event("pick", %{"name" => name}, socket) do
@@ -231,7 +236,7 @@ defmodule RempostWeb.ShipmentLive.Index do
   def shipment_count_label(shipments), do: "#{length(shipments)} pakketten gevonden"
 
   def total_order_count(customer_summaries) do
-    Enum.reduce(customer_summaries, 0, &(&1.order_count + &2))
+    Enum.reduce(customer_summaries, 0, &(&1.shipment_count + &2))
   end
 
   def master_results_url(search_query) do
@@ -347,11 +352,11 @@ defmodule RempostWeb.ShipmentLive.Index do
   def status_label(:failed), do: "Aandacht nodig"
   def status_label(status), do: status |> to_string() |> String.replace("_", " ")
 
-  def status_classes(:delivered), do: "border-emerald-200 bg-emerald-50 text-emerald-700"
-  def status_classes(:failed), do: "border-red-200 bg-red-50 text-red-700"
-  def status_classes(:in_transit), do: "border-blue-200 bg-blue-50 text-blue-700"
-  def status_classes(:shipped), do: "border-amber-200 bg-amber-50 text-amber-700"
-  def status_classes(_status), do: "border-zinc-200 bg-zinc-100 text-zinc-700"
+  def status_classes(:delivered), do: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+  def status_classes(:failed), do: "border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300"
+  def status_classes(:in_transit), do: "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-300"
+  def status_classes(:shipped), do: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300"
+  def status_classes(_status), do: "border-zinc-200 bg-zinc-100 text-zinc-700 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
 
   def timeline_steps do
     [
@@ -364,16 +369,16 @@ defmodule RempostWeb.ShipmentLive.Index do
 
   def timeline_step_classes(current_status, step_status) do
     if timeline_step_complete?(current_status, step_status) do
-      "border-[#db8142] bg-[#db8142] text-white"
+      "border-[var(--portal-step-complete)] bg-[var(--portal-step-complete)] text-white"
     else
-      "border-[#ded6ca] bg-white text-[#aaa39b]"
+      "border-[var(--portal-step-incomplete)] bg-[var(--portal-surface)] text-[var(--portal-step-incomplete-text)]"
     end
   end
 
   def timeline_line_classes(current_status, step_status) do
     if timeline_step_complete?(current_status, step_status),
-      do: "bg-[#db8142]",
-      else: "bg-[#ded6ca]"
+      do: "bg-[var(--portal-step-complete)]",
+      else: "bg-[var(--portal-step-incomplete)]"
   end
 
   def format_datetime(nil), do: "Nog niet bekend"
@@ -381,6 +386,17 @@ defmodule RempostWeb.ShipmentLive.Index do
   def format_datetime(datetime) do
     Calendar.strftime(datetime, "%d-%m-%Y %H:%M")
   end
+
+  def delivery_label(%{status: :delivered, delivered_at_text: text}) when is_binary(text) and text != "",
+    do: "Bezorgd #{text}"
+
+  def delivery_label(%{status: :delivered}), do: "Bezorgd"
+
+  def delivery_label(%{estimated_delivery_text: text}) when is_binary(text) and text != "",
+    do: text
+
+  def delivery_label(%{estimated_delivery_at: %DateTime{} = at}), do: format_datetime(at)
+  def delivery_label(_), do: "Nog niet bekend"
 
   def short_date(nil), do: "--"
 

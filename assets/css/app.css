@@ -2,6 +2,94 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  .monaco-editor canvas.decorationsOverviewRuler {
+    display: none !important;
+  }
+
+  .dark {
+    color-scheme: dark;
+  }
+
+  :root {
+    --portal-bg: #f7f4ee;
+    --portal-text: #2b211c;
+    --portal-text-secondary: #5f534c;
+    --portal-text-muted: #70645d;
+    --portal-text-subtle: #756961;
+    --portal-text-heading: #241914;
+    --portal-text-accent: #db8142;
+    --portal-border: #ded6ca;
+    --portal-button-bg: #4a2c22;
+    --portal-button-bg-hover: #3b231b;
+    --portal-divider: #eadfd2;
+    --portal-hover: #f5f0e6;
+    --portal-selected: #f3e5d8;
+    --portal-surface-95: rgba(255, 255, 255, 0.95);
+    --portal-surface-90: rgba(255, 255, 255, 0.9);
+    --portal-surface-85: rgba(255, 255, 255, 0.85);
+    --portal-surface-82: rgba(255, 255, 255, 0.82);
+    --portal-surface-80: rgba(255, 255, 255, 0.8);
+    --portal-surface-75: rgba(255, 255, 255, 0.75);
+    --portal-surface-70: rgba(255, 255, 255, 0.7);
+    --portal-surface-45: rgba(255, 255, 255, 0.45);
+    --portal-surface: #ffffff;
+    --portal-badge-bg: #f2dfcf;
+    --portal-initials-bg: #e7d7cb;
+    --portal-progress-dot: #d8d2c8;
+    --portal-step-complete: #db8142;
+    --portal-step-incomplete: #ded6ca;
+    --portal-step-incomplete-text: #aaa39b;
+    --portal-glow: rgba(219, 129, 66, 0.18);
+    --portal-pattern: rgba(83, 57, 45, 0.035);
+    --portal-shadow: rgba(74, 44, 34, 0.1);
+    --portal-text-darker: #3d312b;
+    --portal-input-placeholder: #aaa39b;
+    --portal-muted-label: #6b625c;
+    --portal-tracking-text: #8b7e75;
+    --portal-result-muted: #9a8e85;
+  }
+
+  .dark {
+    --portal-bg: #141210;
+    --portal-text: #e8e2db;
+    --portal-text-secondary: #bcb3a9;
+    --portal-text-muted: #958b80;
+    --portal-text-subtle: #73685e;
+    --portal-text-heading: #f0ebe5;
+    --portal-text-accent: #f0b07a;
+    --portal-border: #2e2925;
+    --portal-button-bg: #d4783a;
+    --portal-button-bg-hover: #b8682e;
+    --portal-divider: #2e2925;
+    --portal-hover: #1f1c19;
+    --portal-selected: #2e2925;
+    --portal-surface-95: rgba(26, 23, 21, 0.95);
+    --portal-surface-90: rgba(26, 23, 21, 0.9);
+    --portal-surface-85: rgba(26, 23, 21, 0.85);
+    --portal-surface-82: rgba(26, 23, 21, 0.82);
+    --portal-surface-80: rgba(26, 23, 21, 0.8);
+    --portal-surface-75: rgba(26, 23, 21, 0.75);
+    --portal-surface-70: rgba(26, 23, 21, 0.7);
+    --portal-surface-45: rgba(26, 23, 21, 0.45);
+    --portal-surface: #1a1715;
+    --portal-badge-bg: #2e2925;
+    --portal-initials-bg: #2e2925;
+    --portal-progress-dot: #4a423c;
+    --portal-step-complete: #d4783a;
+    --portal-step-incomplete: #2e2925;
+    --portal-step-incomplete-text: #4a423c;
+    --portal-glow: rgba(212, 120, 58, 0.1);
+    --portal-pattern: rgba(255, 255, 255, 0.025);
+    --portal-shadow: rgba(0, 0, 0, 0.4);
+    --portal-text-darker: #d4cdc5;
+    --portal-input-placeholder: #4a423c;
+    --portal-muted-label: #958b80;
+    --portal-tracking-text: #73685e;
+    --portal-result-muted: #73685e;
+  }
+}
+
 @keyframes rempost-step-in {
   from {
     opacity: 0;
@@ -25,5 +113,87 @@
   to {
     opacity: 1;
     transform: translateX(0);
+  }
+}
+
+@keyframes rempost-suggest-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes rempost-suggest-out {
+  from {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.95) translateY(-6px);
+  }
+}
+
+@keyframes rempost-candidates-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes rempost-candidates-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes rempost-suggest-item-in {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @keyframes rempost-suggest-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes rempost-suggest-out {
+    from { opacity: 1; }
+    to { opacity: 0; }
+  }
+
+  @keyframes rempost-candidates-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes rempost-candidates-out {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes rempost-suggest-item-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
   }
 }

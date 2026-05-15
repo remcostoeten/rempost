@@ -1,43 +1,138 @@
-<section class="space-y-4">
-  <div class="flex items-center justify-between">
-    <h1 class="text-2xl font-semibold">Raw Email Debug</h1>
-    <button
-      phx-click="retry_parse"
-      class="rounded-md bg-black px-3 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
-      type="button"
-    >
-      Retry parsing
-    </button>
-  </div>
+<section class="min-h-screen bg-zinc-50 px-6 py-10 text-zinc-950 dark:bg-zinc-900 dark:text-zinc-100">
+  <div class="mx-auto max-w-5xl space-y-6">
+    <.app_header back_to={~p"/dashboard"} back_label="Terug naar inbox" badge="Admin" />
 
-  <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-    <div class="rounded-lg bg-zinc-100 p-3">
-      <p class="text-xs uppercase tracking-wide text-zinc-500">Status</p>
-      <p class="text-sm font-semibold"><%= @email.status %></p>
-    </div>
-    <div class="rounded-lg bg-zinc-100 p-3">
-      <p class="text-xs uppercase tracking-wide text-zinc-500">Message ID</p>
-      <p class="text-sm break-all"><%= @email.message_id %></p>
-    </div>
-    <div class="rounded-lg bg-zinc-100 p-3">
-      <p class="text-xs uppercase tracking-wide text-zinc-500">From</p>
-      <p class="text-sm break-all"><%= @email.from_email %></p>
-    </div>
-  </div>
+    <div class="rounded-2xl border border-zinc-200 bg-white/90 p-5 shadow-sm dark:border-zinc-700 dark:bg-zinc-800/90">
+      <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <div class="min-w-0">
+          <p class="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+            Raw email debug
+          </p>
+          <h1 class="mt-1 text-2xl font-semibold tracking-tight text-zinc-950 break-words dark:text-zinc-100">
+            <%= @email.subject || "(no subject)" %>
+          </h1>
+          <p class="mt-2 text-sm text-zinc-500 break-all dark:text-zinc-400">
+            From <span class="font-medium text-zinc-700 dark:text-zinc-300"><%= @email.from_email %></span>
+            · <%= Calendar.strftime(@email.received_at, "%d-%m-%Y %H:%M") %>
+          </p>
+        </div>
 
-  <%= if @retry_error do %>
-    <p class="rounded-lg bg-red-50 p-3 text-sm text-red-700">Retry failed: <%= @retry_error %></p>
-  <% end %>
+        <button
+          phx-click="retry_parse"
+          class="inline-flex h-10 items-center gap-2 self-start rounded-xl bg-zinc-950 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-200"
+          type="button"
+        >
+          <.icon name="hero-arrow-path" class="h-4 w-4" />
+          Retry parsing
+        </button>
+      </div>
 
-  <%= if @email.parse_error do %>
-    <div class="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
-      <p class="font-semibold">Last parse error</p>
-      <p><%= @email.parse_error %></p>
+      <div class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
+        <div class="rounded-xl bg-zinc-50 p-3 dark:bg-zinc-800">
+          <p class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Status</p>
+          <p class="mt-1 text-sm font-semibold"><%= @email.status %></p>
+        </div>
+        <div class="rounded-xl bg-zinc-50 p-3 dark:bg-zinc-800">
+          <p class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Message ID</p>
+          <p class="mt-1 text-xs break-all text-zinc-700 dark:text-zinc-300"><%= @email.message_id %></p>
+        </div>
+        <div class="rounded-xl bg-zinc-50 p-3 dark:bg-zinc-800">
+          <p class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Received</p>
+          <p class="mt-1 text-sm"><%= Calendar.strftime(@email.received_at, "%d-%m-%Y %H:%M:%S") %></p>
+        </div>
+      </div>
     </div>
-  <% end %>
 
-  <div>
-    <p class="mb-2 text-sm font-semibold text-zinc-600">Raw text</p>
-    <pre class="rounded-lg bg-zinc-100 p-4 overflow-auto"><%= @email.raw_text %></pre>
+    <%= if @retry_error do %>
+      <p class="rounded-xl bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">Retry failed: <%= @retry_error %></p>
+    <% end %>
+
+    <%= if @email.parse_error do %>
+      <div class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+        <p class="font-semibold">Last parse error</p>
+        <p class="mt-1"><%= @email.parse_error %></p>
+      </div>
+    <% end %>
+
+    <%= if @parsed do %>
+      <div class="rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-700 dark:bg-zinc-800">
+        <div class="flex items-center justify-between border-b border-zinc-200 bg-zinc-50/70 px-5 py-3 dark:border-zinc-700 dark:bg-zinc-800/70">
+          <div class="flex items-center gap-2 text-sm">
+            <.icon name="hero-magnifying-glass" class="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
+            <span class="font-semibold text-zinc-950 dark:text-zinc-100">Parsed fields</span>
+            <span class="text-xs text-zinc-500 dark:text-zinc-400">(live preview — not stored)</span>
+          </div>
+        </div>
+
+        <dl class="grid grid-cols-1 divide-y divide-zinc-100 sm:grid-cols-2 sm:divide-y-0 sm:divide-x dark:divide-zinc-700">
+          <div class="p-4 sm:border-b sm:border-zinc-100 dark:sm:border-zinc-700">
+            <dt class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Carrier</dt>
+            <dd class="mt-1 text-sm font-medium"><%= field_or_dash(@parsed.carrier) %></dd>
+          </div>
+          <div class="p-4 sm:border-b sm:border-zinc-100 dark:sm:border-zinc-700">
+            <dt class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Status</dt>
+            <dd class="mt-1 text-sm font-medium"><%= field_or_dash(@parsed.status) %></dd>
+          </div>
+          <div class="p-4 sm:border-b sm:border-zinc-100 dark:sm:border-zinc-700">
+            <dt class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Tracking #</dt>
+            <dd class="mt-1 text-sm font-mono"><%= field_or_dash(@parsed.tracking_number) %></dd>
+          </div>
+          <div class="p-4 sm:border-b sm:border-zinc-100 dark:sm:border-zinc-700">
+            <dt class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Tracking URL</dt>
+            <dd class="mt-1 text-sm break-all">
+              <%= if @parsed.tracking_url do %>
+                <a href={@parsed.tracking_url} target="_blank" rel="noreferrer noopener"
+                   class="text-amber-700 underline-offset-4 hover:underline dark:text-amber-400 dark:hover:text-amber-300">
+                  <%= @parsed.tracking_url %>
+                </a>
+              <% else %>
+                —
+              <% end %>
+            </dd>
+          </div>
+          <div class="p-4 sm:border-b sm:border-zinc-100 dark:sm:border-zinc-700">
+            <dt class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Order #</dt>
+            <dd class="mt-1 text-sm font-mono"><%= field_or_dash(@parsed.order_number) %></dd>
+          </div>
+          <div class="p-4">
+            <dt class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Customer</dt>
+            <dd class="mt-1 text-sm">
+              <%= field_or_dash(@parsed.customer_name) %>
+              <%= if @parsed.customer_postal_code do %>
+                <span class="text-zinc-500 dark:text-zinc-400">· <%= @parsed.customer_postal_code %></span>
+              <% end %>
+              <%= if @parsed.customer_street do %>
+                <div class="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
+                  <%= @parsed.customer_street %> <%= @parsed.customer_house_number %>
+                </div>
+              <% end %>
+            </dd>
+          </div>
+        </dl>
+      </div>
+    <% end %>
+
+    <%= if @email.raw_html && @email.raw_html != "" do %>
+      <div class="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-700 dark:bg-zinc-800">
+        <div class="border-b border-zinc-200 bg-zinc-50/70 px-5 py-3 text-sm dark:border-zinc-700 dark:bg-zinc-800/70">
+          <span class="font-semibold text-zinc-950 dark:text-zinc-100">HTML body</span>
+          <span class="ml-2 text-xs text-zinc-500 dark:text-zinc-400">(sandboxed)</span>
+        </div>
+        <iframe
+          sandbox=""
+          srcdoc={@email.raw_html}
+          class="h-[600px] w-full bg-white dark:bg-zinc-900"
+          title="Email HTML body"
+        ></iframe>
+      </div>
+    <% end %>
+
+    <div class="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-700 dark:bg-zinc-800">
+      <div class="border-b border-zinc-200 bg-zinc-50/70 px-5 py-3 text-sm dark:border-zinc-700 dark:bg-zinc-800/70">
+        <span class="font-semibold text-zinc-950 dark:text-zinc-100">Raw text</span>
+        <span class="ml-2 text-xs text-zinc-500 dark:text-zinc-400">(URLs and tracking numbers are clickable)</span>
+      </div>
+      <pre class="overflow-auto bg-white p-5 text-xs leading-relaxed text-zinc-800 whitespace-pre-wrap break-words dark:bg-zinc-900 dark:text-zinc-300"><%= for token <- linkify(@email.raw_text) do %><%= case token do %><% {:link, href, label} -> %>                <a href={href} target="_blank" rel="noreferrer noopener" class="text-amber-700 underline underline-offset-2 hover:text-amber-900 dark:text-amber-400 dark:hover:text-amber-300"><%= label %></a><% {:text, t} -> %><%= t %><% end %><% end %></pre>
+    </div>
   </div>
 </section>

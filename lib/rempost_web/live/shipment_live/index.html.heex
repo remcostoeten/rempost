@@ -1,18 +1,18 @@
-<section class="min-h-screen overflow-hidden bg-[#f7f4ee] text-[#2b211c]">
-  <div class="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_52%_0%,rgba(219,129,66,0.18),transparent_36%),linear-gradient(90deg,rgba(83,57,45,0.035)_1px,transparent_1px)] bg-[size:auto,18px_18px]">
+<section class="min-h-screen overflow-hidden bg-[var(--portal-bg)] text-[var(--portal-text)]">
+  <div class="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_52%_0%,var(--portal-glow),transparent_36%),linear-gradient(90deg,var(--portal-pattern)_1px,transparent_1px)] bg-[size:auto,18px_18px]">
   </div>
 
   <div class={[
-    "relative mx-auto flex min-h-screen flex-col px-7 py-10",
+    "relative mx-auto flex min-h-screen flex-col px-5 sm:px-7 py-10",
     @step == :results && "max-w-[1180px]",
     @step != :results && "max-w-[680px]"
   ]}>
     <header class="flex items-center justify-between gap-4">
       <.link
         patch={~p"/portal?step=start"}
-        class="flex items-center gap-3 text-sm font-semibold text-[#2b211c]"
+        class="flex items-center gap-3 text-sm font-semibold text-[var(--portal-text)]"
       >
-        <div class="grid h-9 w-9 place-items-center rounded-xl bg-[#4a2c22] text-white shadow-sm">
+        <div class="grid h-9 w-9 place-items-center rounded-xl bg-[var(--portal-button-bg)] text-white shadow-sm">
           <.icon name="hero-envelope" class="h-4 w-4" />
         </div>
         Rempost
@@ -25,8 +25,8 @@
               title={label}
               class={[
                 "h-1 rounded-full transition-all duration-300",
-                step_active_dot?(step_key, @step) && "w-9 bg-[#db8142]",
-                !step_active_dot?(step_key, @step) && "w-5 bg-[#d8d2c8]"
+                step_active_dot?(step_key, @step) && "w-9 bg-[var(--portal-step-complete)]",
+                !step_active_dot?(step_key, @step) && "w-5 bg-[var(--portal-progress-dot)]"
               ]}
             >
             </span>
@@ -35,10 +35,13 @@
 
         <button
           type="button"
-          class="grid h-10 w-10 place-items-center rounded-xl border border-[#ded6ca] bg-white/80 text-[#5f534c] shadow-sm"
-          title="Theme"
+          id="theme-toggle"
+          phx-hook="ThemeToggle"
+          class="grid h-10 w-10 place-items-center rounded-xl border border-[var(--portal-border)] bg-[var(--portal-surface-80)] text-[var(--portal-text-secondary)] shadow-sm"
+          title="Toggle theme"
         >
-          <.icon name="hero-moon" class="h-4 w-4" />
+          <.icon name="hero-moon" class="h-4 w-4 block dark:hidden" />
+          <.icon name="hero-sun" class="h-4 w-4 hidden dark:block" />
         </button>
       </div>
     </header>
@@ -50,27 +53,27 @@
     ]}>
       <%= if @step == :lookup do %>
         <section class="w-full animate-[rempost-step-in_420ms_cubic-bezier(0.22,1,0.36,1)]">
-          <h1 class="font-serif text-5xl leading-[1.05] text-[#241914] sm:text-6xl">
+          <h1 class="font-serif text-5xl leading-[1.05] text-[var(--portal-text-heading)] sm:text-6xl">
             Hé, wie ben je?<br />
-            <em class="font-normal text-[#db8142]">We zoeken je pakket.</em>
+            <em class="font-normal text-[var(--portal-text-accent)]">We zoeken je pakket.</em>
           </h1>
 
-          <p class="mt-5 max-w-lg text-lg leading-8 text-[#70645d]">
+          <p class="mt-5 max-w-lg text-lg leading-8 text-[var(--portal-text-muted)]">
             Typ je naam zoals die op de bestelling staat.
           </p>
 
           <.form for={%{}} phx-submit="submit" as={:lookup} class="mt-11" autocomplete="off">
             <div class="relative">
-              <label class="mb-3 block text-xs font-semibold uppercase tracking-[0.16em] text-[#6b625c]">
+              <label class="mb-3 block text-xs font-semibold uppercase tracking-[0.16em] text-[var(--portal-muted-label)]">
                 Naam op bestelling
               </label>
 
               <div class={[
-                "flex h-16 items-center gap-4 rounded-2xl border bg-white/80 px-5 shadow-sm transition-colors",
+                "flex h-16 items-center gap-4 rounded-2xl border bg-[var(--portal-surface-80)] px-5 shadow-sm transition-colors",
                 @lookup_error && "border-red-300 ring-2 ring-red-100",
-                !@lookup_error && "border-[#ded6ca] focus-within:border-[#db8142]"
+                !@lookup_error && "border-[var(--portal-border)] focus-within:border-[var(--portal-step-complete)]"
               ]}>
-                <.icon name="hero-magnifying-glass" class="h-5 w-5 shrink-0 text-[#756961]" />
+                <.icon name="hero-magnifying-glass" class="h-5 w-5 shrink-0 text-[var(--portal-text-subtle)]" />
                 <input
                   id="lookup_name"
                   type="text"
@@ -81,51 +84,69 @@
                   autocomplete="off"
                   autofocus
                   placeholder="Begin met typen..."
-                  class="min-w-0 flex-1 bg-transparent text-lg text-[#2b211c] outline-none placeholder:text-[#aaa39b]"
+                  class="min-w-0 flex-1 bg-transparent text-lg text-[var(--portal-text)] outline-none placeholder:text-[var(--portal-input-placeholder)]"
                 />
                 <%= if @lookup_error do %>
                   <.icon name="hero-exclamation-circle" class="h-5 w-5 shrink-0 text-red-500" />
                 <% end %>
               </div>
 
-              <%= if @suggestions != [] do %>
-                <ul class="mt-2 overflow-hidden rounded-2xl border border-[#ded6ca] bg-white/95 shadow-sm">
-                  <%= for s <- @suggestions do %>
-                    <li>
+              <div class={[
+                "overflow-hidden transition-all duration-[220ms] ease-[cubic-bezier(0.32,0.72,0,1)]",
+                @suggestions != [] && "mt-2 max-h-[600px] opacity-100 scale-100 translate-y-0 pointer-events-auto visible",
+                @suggestions == [] && "max-h-0 opacity-0 scale-95 -translate-y-1 pointer-events-none invisible"
+              ]}>
+                <%= if @suggestions != [] do %>
+                  <ul
+                    class="overflow-hidden rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-95)] shadow-sm"
+                  >
+                    <%= for {s, index} <- Enum.with_index(@suggestions) do %>
+                      <li
+                        style={"animation-delay: #{index * 30}ms"}
+                        class="animate-[rempost-suggest-item-in_200ms_cubic-bezier(0.32,0.72,0,1)_both]"
+                      >
+                        <button
+                          type="button"
+                          phx-click="pick"
+                          phx-value-name={s.name}
+                          class="flex w-full items-center justify-between px-5 py-3 text-left text-sm hover:bg-[var(--portal-hover)]"
+                        >
+                          <span class="font-medium text-[var(--portal-text)]"><%= s.name %></span>
+                          <span class="text-xs text-[var(--portal-result-muted)]">
+                            <%= s.shipment_count %>
+                            <%= if s.shipment_count == 1, do: "pakket", else: "pakketten" %>
+                          </span>
+                        </button>
+                      </li>
+                    <% end %>
+                  </ul>
+                <% end %>
+              </div>
+
+              <div class={[
+                "overflow-hidden transition-all duration-[220ms] ease-[cubic-bezier(0.32,0.72,0,1)]",
+                @candidates != [] && "mt-3 max-h-[600px] opacity-100 translate-y-0 pointer-events-auto visible",
+                @candidates == [] && "max-h-0 opacity-0 -translate-y-1 pointer-events-none invisible"
+              ]}>
+                <%= if @candidates != [] do %>
+                  <div class="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-85)] p-3 text-sm text-[var(--portal-text-secondary)]">
+                    <p class="px-2 pb-2 text-xs uppercase tracking-[0.16em] text-[var(--portal-muted-label)]">
+                      Meerdere matches — kies er een
+                    </p>
+                    <%= for {name, index} <- Enum.with_index(@candidates) do %>
                       <button
                         type="button"
                         phx-click="pick"
-                        phx-value-name={s.name}
-                        class="flex w-full items-center justify-between px-5 py-3 text-left text-sm hover:bg-[#f5f0e6]"
+                        phx-value-name={name}
+                        style={"animation-delay: #{index * 30}ms"}
+                        class="block w-full animate-[rempost-suggest-item-in_200ms_cubic-bezier(0.32,0.72,0,1)_both] rounded-xl px-3 py-2 text-left hover:bg-[var(--portal-hover)]"
                       >
-                        <span class="font-medium text-[#2b211c]"><%= s.name %></span>
-                        <span class="text-xs text-[#9a8e85]">
-                          <%= s.shipment_count %>
-                          <%= if s.shipment_count == 1, do: "pakket", else: "pakketten" %>
-                        </span>
+                        <%= name %>
                       </button>
-                    </li>
-                  <% end %>
-                </ul>
-              <% end %>
-
-              <%= if @candidates != [] do %>
-                <div class="mt-3 rounded-2xl border border-[#ded6ca] bg-white/85 p-3 text-sm text-[#5f534c]">
-                  <p class="px-2 pb-2 text-xs uppercase tracking-[0.16em] text-[#6b625c]">
-                    Meerdere matches — kies er een
-                  </p>
-                  <%= for name <- @candidates do %>
-                    <button
-                      type="button"
-                      phx-click="pick"
-                      phx-value-name={name}
-                      class="block w-full rounded-xl px-3 py-2 text-left hover:bg-[#f5f0e6]"
-                    >
-                      <%= name %>
-                    </button>
-                  <% end %>
-                </div>
-              <% end %>
+                    <% end %>
+                  </div>
+                <% end %>
+              </div>
 
               <%= if @lookup_error do %>
                 <p class="mt-2 text-sm text-red-600"><%= @lookup_error %></p>
@@ -135,7 +156,7 @@
             <div class="mt-7 flex items-center gap-3">
               <button
                 type="submit"
-                class="group inline-flex h-14 items-center gap-3 rounded-2xl bg-[#4a2c22] px-7 text-base font-semibold text-white shadow-sm transition hover:bg-[#3b231b] disabled:opacity-60"
+                class="group inline-flex h-14 items-center gap-3 rounded-2xl bg-[var(--portal-button-bg)] px-7 text-base font-semibold text-white shadow-sm transition hover:bg-[var(--portal-button-bg-hover)] disabled:opacity-60"
                 phx-disable-with="Zoeken..."
               >
                 Zoek pakket
@@ -144,27 +165,27 @@
             </div>
           </.form>
 
-          <details class="mt-10 rounded-2xl border border-[#ded6ca] bg-white/45 p-4 text-sm text-[#70645d]">
-            <summary class="cursor-pointer select-none font-semibold text-[#4a2c22]">
+          <details class="mt-10 rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-45)] p-4 text-sm text-[var(--portal-text-muted)]">
+            <summary class="cursor-pointer select-none font-semibold text-[var(--portal-text)]">
               Master toegang
             </summary>
 
             <.form for={%{}} phx-submit="master_access" as={:master} class="mt-4 flex flex-col gap-3 sm:flex-row">
-              <div class="flex h-12 min-w-0 flex-1 items-center gap-3 rounded-xl border border-[#ded6ca] bg-white/80 px-4">
-                <.icon name="hero-key" class="h-4 w-4 shrink-0 text-[#756961]" />
+              <div class="flex h-12 min-w-0 flex-1 items-center gap-3 rounded-xl border border-[var(--portal-border)] bg-[var(--portal-surface-80)] px-4">
+                <.icon name="hero-key" class="h-4 w-4 shrink-0 text-[var(--portal-text-subtle)]" />
                 <input
                   id="master_password"
                   type="password"
                   name="master[password]"
                   placeholder={master_access_placeholder()}
                   autocomplete="current-password"
-                  class="min-w-0 flex-1 bg-transparent text-sm text-[#2b211c] outline-none placeholder:text-[#aaa39b]"
+                  class="min-w-0 flex-1 bg-transparent text-sm text-[var(--portal-text)] outline-none placeholder:text-[var(--portal-input-placeholder)]"
                 />
               </div>
 
               <button
                 type="submit"
-                class="inline-flex h-12 items-center justify-center rounded-xl bg-[#4a2c22] px-5 text-sm font-semibold text-white"
+                class="inline-flex h-12 items-center justify-center rounded-xl bg-[var(--portal-button-bg)] px-5 text-sm font-semibold text-white"
               >
                 Open
               </button>
@@ -176,26 +197,30 @@
       <%= if @step == :results do %>
         <% selected = selected_shipment(@shipments, @selected_shipment_id) %>
 
-        <section class="w-full animate-[rempost-step-in_420ms_cubic-bezier(0.22,1,0.36,1)] overflow-hidden rounded-[1.35rem] border border-[#ded6ca] bg-white/82 shadow-[0_18px_55px_rgba(74,44,34,0.10)] backdrop-blur">
-          <div class="flex flex-col gap-3 border-b border-[#ded6ca] bg-white/45 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-            <div class="flex items-center gap-3 text-sm">
-              <.icon name="hero-inbox" class="h-4 w-4 text-[#756961]" />
-              <span class="font-semibold text-[#2b211c]">
-                <%= if @master_access?, do: "Alle zendingen", else: "Gekoppelde zendingen" %>
-              </span>
-              <span class="rounded-full bg-[#f2dfcf] px-2.5 py-0.5 text-xs font-semibold text-[#db8142]">
-                <%= shipment_count_label(@shipments) %>
-              </span>
+        <section class="w-full animate-[rempost-step-in_420ms_cubic-bezier(0.22,1,0.36,1)] overflow-hidden rounded-[1.35rem] border border-[var(--portal-border)] bg-[var(--portal-surface-82)] shadow-[var(--portal-shadow)] backdrop-blur">
+          <div class="flex flex-col gap-4 border-b border-[var(--portal-border)] bg-[var(--portal-surface-45)] px-5 py-4 sm:flex-row sm:items-start sm:justify-between">
+            <div class="flex min-w-0 items-start gap-3 text-sm">
+              <.icon name="hero-inbox" class="h-4 w-4 text-[var(--portal-text-subtle)]" />
+              <div class="min-w-0 space-y-1">
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="font-semibold text-[var(--portal-text)]">
+                    <%= if @master_access?, do: "Alle zendingen", else: "Gekoppelde zendingen" %>
+                  </span>
+                  <span class="rounded-full bg-[var(--portal-badge-bg)] px-2.5 py-0.5 text-xs font-semibold text-[var(--portal-text-accent)]">
+                    <%= shipment_count_label(@shipments) %>
+                  </span>
+                </div>
+                <p class="text-xs text-[var(--portal-text-muted)]">
+                  <%= if @master_access?, do: "Operator view", else: @lookup_name %>
+                </p>
+              </div>
             </div>
 
-            <div class="flex items-center gap-4">
-              <span class="hidden text-xs text-[#70645d] sm:inline">
-                <%= if @master_access?, do: "Alle zendingen", else: @lookup_name %>
-              </span>
+            <div class="flex items-center gap-4 self-start">
               <button
                 type="button"
                 phx-click="clear"
-                class="text-sm text-[#70645d] transition hover:text-[#2b211c]"
+                class="text-sm text-[var(--portal-text-muted)] transition hover:text-[var(--portal-text)]"
               >
                 <%= if @master_access?, do: "Terug", else: "Opnieuw zoeken" %>
               </button>
@@ -203,11 +228,11 @@
           </div>
 
           <%= if @master_access? do %>
-            <div class="border-b border-[#ded6ca] bg-[#fbf6ef]/80 px-5 py-3">
+            <div class="border-b border-[var(--portal-border)] bg-[var(--portal-surface-80)] px-5 py-3">
               <.form for={%{}} as={:filters} phx-change="search_results" phx-submit="search_results">
                 <label class="sr-only" for="shipment_search">Zoeken</label>
-                <div class="mb-3 flex h-11 items-center gap-3 rounded-2xl border border-[#ded6ca] bg-white/75 px-4">
-                  <.icon name="hero-magnifying-glass" class="h-4 w-4 shrink-0 text-[#756961]" />
+                <div class="mb-3 flex h-11 items-center gap-3 rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-75)] px-4">
+                  <.icon name="hero-magnifying-glass" class="h-4 w-4 shrink-0 text-[var(--portal-text-subtle)]" />
                   <input
                     id="shipment_search"
                     type="search"
@@ -215,7 +240,7 @@
                     value={@search_query}
                     placeholder="Zoek op naam, inhoud, type mail, adres, datum..."
                     phx-debounce="300"
-                    class="min-w-0 flex-1 bg-transparent text-sm text-[#2b211c] outline-none placeholder:text-[#aaa39b]"
+                    class="min-w-0 flex-1 bg-transparent text-sm text-[var(--portal-text)] outline-none placeholder:text-[var(--portal-input-placeholder)]"
                   />
                 </div>
               </.form>
@@ -225,9 +250,9 @@
                   patch={master_results_url(@search_query)}
                   class={[
                     "shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition",
-                    @selected_customer == "" && "border-[#db8142] bg-[#db8142] text-white",
+                    @selected_customer == "" && "border-[var(--portal-step-complete)] bg-[var(--portal-step-complete)] text-white",
                     @selected_customer != "" &&
-                      "border-[#ded6ca] bg-white/70 text-[#70645d] hover:border-[#db8142] hover:text-[#2b211c]"
+                      "border-[var(--portal-border)] bg-[var(--portal-surface-70)] text-[var(--portal-text-muted)] hover:border-[var(--portal-step-complete)] hover:text-[var(--portal-text)]"
                   ]}
                 >
                   Iedereen
@@ -240,13 +265,13 @@
                     class={[
                       "shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition",
                       @selected_customer == customer.name &&
-                        "border-[#db8142] bg-[#db8142] text-white",
+                        "border-[var(--portal-step-complete)] bg-[var(--portal-step-complete)] text-white",
                       @selected_customer != customer.name &&
-                        "border-[#ded6ca] bg-white/70 text-[#70645d] hover:border-[#db8142] hover:text-[#2b211c]"
+                        "border-[var(--portal-border)] bg-[var(--portal-surface-70)] text-[var(--portal-text-muted)] hover:border-[var(--portal-step-complete)] hover:text-[var(--portal-text)]"
                     ]}
                   >
                     <%= customer.name %>
-                    <span class="ml-1 opacity-75"><%= customer.order_count %></span>
+                    <span class="ml-1 opacity-75"><%= customer.shipment_count %></span>
                   </.link>
                 <% end %>
               </div>
@@ -254,11 +279,11 @@
           <% end %>
 
           <div class="grid grid-cols-1 lg:grid-cols-[380px_1fr]">
-            <aside class="max-h-[610px] divide-y divide-[#eadfd2] overflow-y-auto border-b border-[#ded6ca] lg:border-b-0 lg:border-r">
+            <aside class="lg:max-h-[610px] divide-y divide-[var(--portal-divider)] overflow-y-auto border-b border-[var(--portal-border)] lg:border-b-0 lg:border-r">
               <%= if @shipments == [] do %>
                 <div class="px-5 py-12 text-center">
-                  <p class="text-sm font-semibold text-[#2b211c]">Geen zendingen gevonden</p>
-                  <p class="mt-1 text-sm text-[#70645d]">
+                  <p class="text-sm font-semibold text-[var(--portal-text)]">Geen zendingen gevonden</p>
+                  <p class="mt-1 text-sm text-[var(--portal-text-muted)]">
                     We konden geen zendingen koppelen aan deze naam en controle.
                   </p>
                 </div>
@@ -272,29 +297,29 @@
                   style={"animation-delay: #{index * 35}ms"}
                   class={[
                     "relative block w-full px-5 py-4 text-left opacity-0 transition [animation:rempost-list-in_280ms_ease_forwards]",
-                    shipment.id == @selected_shipment_id && "bg-[#f3e5d8]",
-                    shipment.id != @selected_shipment_id && "hover:bg-[#faf3eb]"
+                    shipment.id == @selected_shipment_id && "bg-[var(--portal-selected)]",
+                    shipment.id != @selected_shipment_id && "hover:bg-[var(--portal-hover)]"
                   ]}
                 >
                   <div class="flex items-start gap-4">
-                    <div class="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#e7d7cb] text-xs font-semibold text-[#4a2c22]">
+                    <div class="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[var(--portal-initials-bg)] text-xs font-semibold text-[var(--portal-text)]">
                       <%= merchant_initials(shipment_merchant(shipment)) %>
                     </div>
 
                     <div class="min-w-0 flex-1">
                       <div class="flex items-baseline justify-between gap-2">
-                        <p class="truncate text-sm font-semibold text-[#2b211c]">
+                        <p class="truncate text-sm font-semibold text-[var(--portal-text)]">
                           <%= shipment_title(shipment) %>
                         </p>
-                        <span class="shrink-0 text-xs text-[#70645d]">
+                        <span class="shrink-0 text-xs text-[var(--portal-text-muted)]">
                           <%= short_date(shipment.last_event_at || shipment.updated_at) %>
                         </span>
                       </div>
 
-                      <p class="mt-1 truncate text-sm text-[#5f534c]">
+                      <p class="mt-1 truncate text-sm text-[var(--portal-text-secondary)]">
                         <%= shipment_subtitle(shipment) %>
                       </p>
-                      <p class="mt-1 truncate font-mono text-xs text-[#8b7e75]">
+                      <p class="mt-1 truncate font-mono text-xs text-[var(--portal-tracking-text)]">
                         <%= tracking_label(shipment.tracking_number) %>
                       </p>
                     </div>
@@ -303,40 +328,40 @@
               <% end %>
             </aside>
 
-            <section class="relative min-h-[610px] bg-white/70">
+            <section class="relative lg:min-h-[610px] bg-[var(--portal-surface-70)]">
               <%= if selected do %>
                 <article class="flex h-full flex-col">
-                  <div class="flex flex-wrap items-center justify-between gap-3 border-b border-[#ded6ca] px-7 py-4">
+                  <div class="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--portal-border)] px-7 py-4">
                     <div class="flex items-center gap-1">
-                      <button class="grid h-8 w-8 place-items-center rounded-lg text-[#70645d] transition hover:bg-[#f3e5d8] hover:text-[#2b211c]" title="Vernieuwen">
+                      <button class="grid h-8 w-8 place-items-center rounded-lg text-[var(--portal-text-muted)] transition hover:bg-[var(--portal-selected)] hover:text-[var(--portal-text)]" title="Vernieuwen">
                         <.icon name="hero-arrow-path" class="h-4 w-4" />
                       </button>
-                      <button class="grid h-8 w-8 place-items-center rounded-lg text-[#70645d] transition hover:bg-[#f3e5d8] hover:text-[#2b211c]" title="Archiveren">
+                      <button class="grid h-8 w-8 place-items-center rounded-lg text-[var(--portal-text-muted)] transition hover:bg-[var(--portal-selected)] hover:text-[var(--portal-text)]" title="Archiveren">
                         <.icon name="hero-archive-box" class="h-4 w-4" />
                       </button>
-                      <button class="grid h-8 w-8 place-items-center rounded-lg text-[#70645d] transition hover:bg-[#f3e5d8] hover:text-[#2b211c]" title="Markeren">
+                      <button class="grid h-8 w-8 place-items-center rounded-lg text-[var(--portal-text-muted)] transition hover:bg-[var(--portal-selected)] hover:text-[var(--portal-text)]" title="Markeren">
                         <.icon name="hero-star" class="h-4 w-4" />
                       </button>
                     </div>
-                    <span class="text-sm text-[#70645d]">
+                    <span class="text-sm text-[var(--portal-text-muted)]">
                       <%= format_datetime(selected.last_event_at || selected.updated_at) %>
                     </span>
                   </div>
 
                   <div class="flex-1 overflow-y-auto px-7 py-8">
-                    <h2 class="font-serif text-4xl leading-tight text-[#241914]">
+                    <h2 class="font-serif text-4xl leading-tight text-[var(--portal-text-heading)]">
                       <%= shipment_title(selected) %>
                     </h2>
 
-                    <div class="mt-6 flex items-center gap-4 border-b border-[#ded6ca] pb-6">
-                      <div class="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-[#e7d7cb] text-sm font-semibold text-[#4a2c22]">
+                    <div class="mt-6 flex items-center gap-4 border-b border-[var(--portal-border)] pb-6">
+                      <div class="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-[var(--portal-initials-bg)] text-sm font-semibold text-[var(--portal-text)]">
                         <%= merchant_initials(shipment_merchant(selected)) %>
                       </div>
                       <div class="min-w-0 flex-1">
-                        <p class="truncate text-base font-semibold text-[#2b211c]">
+                        <p class="truncate text-base font-semibold text-[var(--portal-text)]">
                           <%= merchant_label(shipment_merchant(selected)) %>
                         </p>
-                        <p class="text-sm text-[#70645d]">
+                        <p class="text-sm text-[var(--portal-text-muted)]">
                           <%= if @master_access?, do: "operator view", else: "voor #{@lookup_name}" %> via Rempost
                         </p>
                       </div>
@@ -348,37 +373,61 @@
                       </span>
                     </div>
 
-                    <p class="mt-7 max-w-2xl text-lg leading-8 text-[#3d312b]">
-                      <%= status_description(selected.status) %>
+                    <p class="mt-3 text-sm font-medium text-[var(--portal-text-secondary)]">
+                      <%= selected.latest_email_subject || status_description(selected.status) %>
                     </p>
 
+                    <%= if selected.latest_email_subject do %>
+                      <p class="mt-2 max-w-2xl text-base leading-7 text-[var(--portal-text-darker)]">
+                        <%= status_description(selected.status) %>
+                      </p>
+                    <% end %>
+
+                    <%= if selected.signature_required do %>
+                      <div class="mt-4 inline-flex items-center gap-2 rounded-full border border-amber-300 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200">
+                        <.icon name="hero-pencil-square" class="h-3.5 w-3.5" />
+                        Handtekening nodig
+                      </div>
+                    <% end %>
+
                     <div class="mt-7 grid gap-3 md:grid-cols-3">
-                      <div class="rounded-2xl border border-dashed border-[#ded6ca] px-4 py-3">
-                        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-[#70645d]">Tracking</p>
-                        <p class="mt-2 break-all font-mono text-sm text-[#2b211c]">
-                          <%= tracking_label(selected.tracking_number) %>
+                      <div class="rounded-2xl border border-dashed border-[var(--portal-border)] px-4 py-3">
+                        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--portal-text-muted)]">Tracking</p>
+                        <p class="mt-2 break-all font-mono text-sm text-[var(--portal-text)]">
+                          <%= if selected.tracking_url && selected.tracking_number do %>
+                            <a
+                              href={selected.tracking_url}
+                              target="_blank"
+                              rel="noreferrer noopener"
+                              class="text-[var(--portal-text-accent)] underline-offset-4 hover:underline"
+                            >
+                              <%= tracking_label(selected.tracking_number) %>
+                            </a>
+                          <% else %>
+                            <%= tracking_label(selected.tracking_number) %>
+                          <% end %>
                         </p>
                       </div>
 
-                      <div class="rounded-2xl border border-dashed border-[#ded6ca] px-4 py-3">
-                        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-[#70645d]">Referentie</p>
-                        <p class="mt-2 text-sm text-[#2b211c]">
+                      <div class="rounded-2xl border border-dashed border-[var(--portal-border)] px-4 py-3">
+                        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--portal-text-muted)]">Referentie</p>
+                        <p class="mt-2 text-sm text-[var(--portal-text)]">
                           <%= order_reference(selected) || "Geen ordernummer" %>
                         </p>
                       </div>
 
-                      <div class="rounded-2xl border border-dashed border-[#ded6ca] px-4 py-3">
-                        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-[#70645d]">Levering</p>
-                        <p class="mt-2 text-sm text-[#2b211c]">
-                          <%= format_datetime(selected.estimated_delivery_at) %>
+                      <div class="rounded-2xl border border-dashed border-[var(--portal-border)] px-4 py-3">
+                        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--portal-text-muted)]">Levering</p>
+                        <p class="mt-2 text-sm text-[var(--portal-text)]">
+                          <%= delivery_label(selected) %>
                         </p>
                       </div>
                     </div>
 
                     <div class="mt-8">
                       <div class="flex items-center justify-between gap-4">
-                        <h3 class="text-sm font-semibold text-[#2b211c]">Voortgang</h3>
-                        <span class="text-xs text-[#70645d]">Afgeleid uit raw emails</span>
+                        <h3 class="text-sm font-semibold text-[var(--portal-text)]">Voortgang</h3>
+                        <span class="text-xs text-[var(--portal-text-muted)]">Afgeleid uit raw emails</span>
                       </div>
 
                       <div class="mt-5 grid grid-cols-2 gap-y-5 sm:grid-cols-4 sm:gap-y-0">
@@ -399,7 +448,7 @@
                               ]}>
                                 <%= index + 1 %>
                               </span>
-                              <span class="text-xs font-medium text-[#5f534c]">
+                              <span class="text-xs font-medium text-[var(--portal-text-secondary)]">
                                 <%= label %>
                               </span>
                             </div>
@@ -413,7 +462,7 @@
                         href={selected.tracking_url}
                         target="_blank"
                         rel="noreferrer"
-                        class="mt-8 inline-flex h-12 items-center justify-center rounded-2xl bg-[#4a2c22] px-6 text-base font-semibold text-white shadow-sm transition hover:bg-[#3b231b]"
+                        class="mt-8 inline-flex h-12 items-center justify-center rounded-2xl bg-[var(--portal-button-bg)] px-6 text-base font-semibold text-white shadow-sm transition hover:bg-[var(--portal-button-bg-hover)]"
                       >
                         Open tracking bij vervoerder
                       </a>
@@ -421,10 +470,10 @@
                   </div>
                 </article>
               <% else %>
-                <div class="flex min-h-[610px] items-center justify-center p-6 text-center">
+                <div class="flex lg:min-h-[610px] items-center justify-center p-6 text-center">
                   <div>
-                    <p class="text-sm font-semibold text-[#2b211c]">Geen zending geselecteerd</p>
-                    <p class="mt-1 text-sm text-[#70645d]">
+                    <p class="text-sm font-semibold text-[var(--portal-text)]">Geen zending geselecteerd</p>
+                    <p class="mt-1 text-sm text-[var(--portal-text-muted)]">
                       Kies links een zending om details te bekijken.
                     </p>
                   </div>
@@ -436,9 +485,8 @@
       <% end %>
     </main>
 
-    <footer class="text-sm text-[#70645d]">
-      Demo - probeer <span class="font-semibold text-[#2b211c]">Iduna Bink</span> met postcode
-      <span class="font-semibold text-[#2b211c]">2035 PH</span>.
+    <footer class="text-sm text-[var(--portal-text-muted)]">
+      Rempost
     </footer>
   </div>
 </section>

@@ -1,5 +1,38 @@
 defmodule RempostWeb.CoreComponents do
   use Phoenix.Component
+  use RempostWeb, :verified_routes
+
+  attr :title, :string, default: "Postbus"
+  attr :badge, :string, default: nil
+  attr :back_to, :string, default: nil
+  attr :back_label, :string, default: "Terug"
+
+  def app_header(assigns) do
+    ~H"""
+    <header class="flex items-center justify-between gap-4">
+      <.link
+        navigate={~p"/"}
+        class="flex items-center gap-2 text-sm font-semibold text-zinc-950 transition hover:opacity-80 dark:text-zinc-100"
+      >
+        <span class="grid h-7 w-7 place-items-center rounded-md bg-zinc-950 text-white shadow-sm dark:bg-zinc-100 dark:text-zinc-950">
+          <.icon name="hero-envelope" class="h-3.5 w-3.5" />
+        </span>
+        <%= @title %>
+      </.link>
+
+      <div class="flex items-center gap-4 text-xs font-medium">
+        <%= if @back_to do %>
+          <.link navigate={@back_to} class="text-zinc-500 transition hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-zinc-100">
+            <%= @back_label %>
+          </.link>
+        <% end %>
+        <%= if @badge do %>
+          <span class="text-zinc-500 dark:text-zinc-400"><%= @badge %></span>
+        <% end %>
+      </div>
+    </header>
+    """
+  end
 
   attr :name, :string, required: true
   attr :class, :string, default: nil
@@ -52,6 +85,10 @@ defmodule RempostWeb.CoreComponents do
         <% "hero-moon" -> %>
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="h-full w-full">
             <path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
+          </svg>
+        <% "hero-sun" -> %>
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="h-full w-full">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
           </svg>
         <% "hero-key" -> %>
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="h-full w-full">
